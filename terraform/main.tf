@@ -5,8 +5,8 @@ terraform {
   }
 }
 # GCS Buckets
-resource "google_storage_bucket" "bucket-ninos" {
-         name = "bucket-fotos-ninos"
+resource "google_storage_bucket" "bucket-menores" {
+         name = "bucket-fotos-menores"
          location = var.region
          force_destroy = true
          storage_class = "STANDARD"
@@ -45,10 +45,10 @@ resource "google_pubsub_topic" "topic-user-notification" {
 
 # Postgres SQL instance
 resource "google_sql_database_instance" "postgres_instance" {
-  name             = "monitoreo-ninos"
+  name             = "monitoreo-menores"
   region           = var.region
   database_version = "POSTGRES_15"
-  # deletion_protection = true
+  deletion_protection = false
   settings {
     tier            = "db-f1-micro"
     availability_type = "ZONAL"
@@ -70,11 +70,11 @@ resource "google_sql_database_instance" "postgres_instance" {
 resource "google_sql_user" "postgres_user" {
   name     = "postgres"
   instance = google_sql_database_instance.postgres_instance.name
-  password = "Edem2526."
+  password = var.password-postgres
 }
 
-resource "google_sql_database" "ninos_db" {
-  name     = "ninos_db"
+resource "google_sql_database" "menores_db" {
+  name     = "menores_db"
   instance = google_sql_database_instance.postgres_instance.name
 }
 
@@ -86,9 +86,9 @@ resource "google_bigquery_dataset" "monitoreo_dataset" {
 }
 
 
-resource "google_bigquery_table" "niños" {
+resource "google_bigquery_table" "menores" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "niños"
+  table_id   = "menores"
 
   schema = <<EOF
 [
@@ -97,7 +97,7 @@ resource "google_bigquery_table" "niños" {
   {"name": "apellidos", "type": "STRING"},
   {"name": "nombre_familia", "type": "STRING"},
   {"name": "DNI", "type": "STRING"},
-  {"name": "id_padre", "type": "STRING"},
+  {"name": "id_adulto", "type": "STRING"},
   {"name": "fecha_nacimiento", "type": "DATE"},
   {"name": "domicilio", "type": "STRING"},
   {"name": "grado_discapacidad", "type": "STRING"},
@@ -106,9 +106,9 @@ resource "google_bigquery_table" "niños" {
 EOF
 }
 
-resource "google_bigquery_table" "padres" {
+resource "google_bigquery_table" "adultos" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "padres"
+  table_id   = "adultos"
 
   schema = <<EOF
 [
@@ -149,7 +149,7 @@ resource "google_bigquery_table" "zona-restringida" {
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
-  {"name": "id_padre", "type": "STRING"},
+  {"name": "id_adulto", "type": "STRING"},
   {"name": "latitud", "type": "STRING"},
   {"name": "longitud", "type": "STRING"},  
   {"name": "radio_advertencia", "type": "STRING"},
