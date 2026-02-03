@@ -12,7 +12,7 @@ resource "google_storage_bucket" "bucket-ninos" {
          storage_class = "STANDARD"
 }
 resource "google_storage_bucket" "dataflow-temp" {
-  name          = "dataflow-temp-files-jamagece" 
+  name          = "dataflow-jamagece" 
   location      = var.region
   force_destroy = true
   storage_class = "STANDARD"
