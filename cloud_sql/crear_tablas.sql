@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS padres (
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100),
     telefono VARCHAR(20), 
-    id_menor INTEGER REFERENCES menores(id) 
+    id_menor INTEGER REFERENCES menores(id),
+    email VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS historico_ubicaciones (
