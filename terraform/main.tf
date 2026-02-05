@@ -1,18 +1,19 @@
-terraform {
-  backend "gcs" {
-    bucket  = "tfstate_data_project_2_jamagece"
-    prefix  = "terraform/state" 
-  }
-}
+#terraform {
+  #backend "gcs" {
+    #bucket  = "tfstate_data_project_2_jamagece"
+    #prefix  = "terraform/state" 
+  #}
+#}
+
 # GCS Buckets
 resource "google_storage_bucket" "bucket-menores" {
-         name = "bucket-fotos-menores"
+         name = "bucket-fotos-menores-gemma"
          location = var.region
          force_destroy = true
          storage_class = "STANDARD"
 }
 resource "google_storage_bucket" "dataflow-temp" {
-  name          = "dataflow-jamagece" 
+  name          = "dataflow-jamagece-gemma" 
   location      = var.region
   force_destroy = true
   storage_class = "STANDARD"
@@ -154,10 +155,10 @@ resource "google_bigquery_table" "zona-restringida" {
 EOF
 }
 
-#firestore database in native mode
-resource "google_firestore_database" "database" {
-  project     = var.project_id
-  name        = "(default)"
-  location_id = var.region
-  type        = "FIRESTORE_NATIVE"
-}
+# --- BORRA O COMENTA ESTO ---
+# resource "google_firestore_database" "database" {
+#   project     = var.project_id
+#   name        = "(default)"
+#   location_id = var.region
+#   type        = "FIRESTORE_NATIVE"
+# }

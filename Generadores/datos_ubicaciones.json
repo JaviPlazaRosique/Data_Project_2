@@ -1,0 +1,52 @@
+[
+    {
+        "id": "4ffde79a-1872-40f9-b8a0-3318e672ae40",
+        "fecha": "2026-02-06 00:26:23",
+        "latitud": "73.4103495",
+        "longitud": "10.887217",
+        "radio": "20m",
+        "direccion": 338,
+        "duracion": "0min",
+        "id_niño": "81055550-b102-442c-a2ee-631f19320770"
+    },
+    {
+        "id": "2a38813c-e016-4b67-840b-111894861e96",
+        "fecha": "2026-02-06 00:26:23",
+        "latitud": "83.2915045",
+        "longitud": "-17.248979",
+        "radio": "28m",
+        "direccion": 240,
+        "duracion": "0min",
+        "id_niño": "60d93440-281b-4247-96c3-cd4fa0c9f817"
+    },
+    {
+        "id": "23a5ca7e-4709-4593-844b-e904d5f3fbbb",
+        "fecha": "2026-02-06 00:26:23",
+        "latitud": "40.215042",
+        "longitud": "115.892660",
+        "radio": "38m",
+        "direccion": 258,
+        "duracion": "0min",
+        "id_niño": "841e9ec8-e024-4aba-a229-2def2ffad758"
+    },
+    {
+        "id": "4f98ab2a-8300-4483-ae83-584dfac3d8e6",
+        "fecha": "2026-02-06 00:26:23",
+        "latitud": "62.3986595",
+        "longitud": "-33.683694",
+        "radio": "18m",
+        "direccion": 130,
+        "duracion": "0min",
+        "id_niño": "060aa4ff-af75-4cfc-9ed0-ffa33110c545"
+    },
+    {
+        "id": "d8428875-0ac0-4c3a-8eeb-3da4671fde58",
+        "fecha": "2026-02-06 00:26:23",
+        "latitud": "45.4169215",
+        "longitud": "22.895314",
+        "radio": "24m",
+        "direccion": 168,
+        "duracion": "0min",
+        "id_niño": "7577cc82-1949-4ca3-9515-8a8f8148bd76"
+    }
+]
