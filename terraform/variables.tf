@@ -13,11 +13,6 @@ variable "zone" {
   type        = string
 }
 
-variable "service_account_email" {
-  description = "Email de service account para guardar VMs"
-  type        = string
-}
-
 variable "password-postgres" {
   description = "Tla contraseña para el usuario de postgres en Cloud SQL"
   type        = string
