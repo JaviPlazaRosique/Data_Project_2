@@ -157,7 +157,7 @@ EOF
 #firestore database in native mode
 resource "google_firestore_database" "database" {
   project     = var.project_id
-  name        = "monitoreo"
+  name        = "(default)"
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
 }
