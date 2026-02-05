@@ -45,14 +45,6 @@ class Adultos(BaseModel):
     id_menor: int
     email: str
 
-class HistoricoUbicaciones(BaseModel):
-    id_menor: int
-    latitud: float
-    longitud: float
-    radio: int
-    fecha: date
-    duracion: int
-
 class ZonasRestringidas(BaseModel):
     nombre: str
     latitud: float
@@ -92,21 +84,6 @@ async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
         db.execute(consulta, adulto.model_dump())
 
         return {"mensaje": "Adulto creado exitosamente"}
-
-    except Exception as e:
-        raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
-
-@app.post("/historico_ubicaciones", status_code = 201)
-async def crear_historico_ubicacion(historico: HistoricoUbicaciones, db = Depends(obtener_conexion)):
-    try:
-        consulta = text("""
-            INSERT INTO historico_ubicaciones (id_menor, latitud, longitud, radio, fecha, duracion)
-            VALUES (:id_menor, :latitud, :longitud, :radio, :fecha, :duracion)
-        """)
-
-        db.execute(consulta, historico.model_dump())
-
-        return {"mensaje": "Histórico de ubicación creado exitosamente"}
 
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
