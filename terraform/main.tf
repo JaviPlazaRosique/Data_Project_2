@@ -57,10 +57,6 @@ resource "google_sql_database_instance" "postgres_instance" {
 
     ip_configuration {
       ipv4_enabled = true
-      authorized_networks {
-        name  = "public-access"
-        value = "0.0.0.0/0"
-      }
     }
   }
   lifecycle {
@@ -161,7 +157,7 @@ EOF
 #firestore database in native mode
 resource "google_firestore_database" "database" {
   project     = var.project_id
-  name        = "(default)"
+  name        = "monitoreo"
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
 }
