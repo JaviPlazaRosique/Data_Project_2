@@ -1,0 +1,3 @@
+apache-beam[gcp]==2.62.0
+google-cloud-firestore==2.23.0
+pandas==2.3.3
