@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS historico_ubicaciones (
     radio INTEGER,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     duracion INTEGER,
-    estado_menor VARCHAR(20)
+    estado VARCHAR(20)
 );
 
 CREATE TABLE IF NOT EXISTS zonas_restringidas (
