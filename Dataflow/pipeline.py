@@ -42,7 +42,7 @@ class ZonasRestringidas(beam.DoFn):
         # element =  #Diccionario con datos de la ubicacion del niño (viene del Pub/Sub)
         # lista_zonas = #Lista con todas las zonas (viene de BigQuery)
         try:
-            id_niño=element.get('id_niño')
+            id_menor=element.get('id_menor')
             lat_menor=float(element.get('latitud'))
             long_menor=float(element.get('longitud'))
 
@@ -53,7 +53,7 @@ class ZonasRestringidas(beam.DoFn):
         zona_detectada = None
 
         for zona in lista_zonas:
-            if id_niño == zona.get('id_niño'): 
+            if id_menor == zona.get('id_menor'): 
                 lat_zona=float(zona.get('latitud'))
                 long_zona=float(zona.get('longitud'))
                 radio_peligro = float(zona.get('radio_peligro'))
@@ -75,7 +75,7 @@ class ZonasRestringidas(beam.DoFn):
         element['estado'] = estado
         element['zona_involucrada'] = zona_detectada
 
-        logging.info(f"Procesado: Niño {id_niño} -> Estado: {estado} (Zona: {zona_detectada})")        
+        logging.info(f"Procesado: Niño {id_menor} -> Estado: {estado} (Zona: {zona_detectada})")        
 
         yield element    
 
@@ -85,33 +85,33 @@ class EnviarNotificaciones(beam.DoFn):
         estado = element.get('estado')
 
         if estado == "OK":
-            return  
+            logging.info(f"OK: El niño {element.get('id_menor')} está en una zona segura. No se requiere notificación.")  
          
         else:
-            id_niño = element.get('id_niño')
+            id_menor = element.get('id_menor')
             zona = element.get('zona_involucrada')
             mensaje_alerta = None
 
             if estado == "PELIGRO":
-                logging.warning(f"🚨 ALERTA ROJA: El niño {id_niño} ha entrado en una zona de PELIGRO ({zona}). Notificando al padre.")
+                logging.warning(f"🚨 ALERTA ROJA: El niño {id_menor} ha entrado en una zona de PELIGRO ({zona}). Notificando al padre.")
                 mensaje_alerta = {
                 "destinatario": "PADRE", # Aquí iría el email/teléfono real
                 "asunto": f"¡ALERTA DE {estado}!",
-                "cuerpo": f"Atención: {id_niño} ha entrado en la zona {zona}. Por favor, verifique su ubicación.",
+                "cuerpo": f"Atención: {id_menor} ha entrado en la zona {zona}. Por favor, verifique su ubicación.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
             }
             
             elif estado == "ADVERTENCIA":
-                logging.info(f"⚠️ ADVERTENCIA: El niño {id_niño} cerca de zona ({zona}). Notificando al menor.")
+                logging.info(f"⚠️ ADVERTENCIA: El niño {id_menor} cerca de zona ({zona}). Notificando al menor.")
                 mensaje_alerta = {
                 "destinatario": "MENOR",
                 "asunto": f"¡ALERTA DE {estado}!",
-                "cuerpo": f"Atención: {id_niño} ha entrado en la zona restringida de {zona}.",
+                "cuerpo": f"Atención: {id_menor} ha entrado en la zona restringida de {zona}.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
             }
            
             else:
-                logging.info(f"OK: El niño {id_niño} está en una zona segura.")
+                logging.info(f"OK: El niño {id_menor} está en una zona segura.")
 
 
             if mensaje_alerta:
@@ -146,9 +146,9 @@ def run():
                default='dataflow-marina:monitoreo_dataset.zona-restringida',
                 help='Tabla BigQuery con zonas restringidas.')
     parser.add_argument(
-                '--historico_ubicacion_bigquery_table',
+                '--historico_ubicaciones_bigquery_table',
                 required=False,
-                default='historico_ubicacion',
+                default='historico_ubicaciones',
                 help='Tabla BigQuery para historico de ubicaciones.')
     
     args, pipeline_opts = parser.parse_known_args()
@@ -167,9 +167,9 @@ def run():
         # )
 
         #para hacer pruebas en local usamos: 
-        # pegando en otrs consola: gcloud pubsub topics publish topic-ubicacion --message '{"id_niño": "Javi", "latitud": 39.4699, "longitud": -0.3763}'
+        # pegando en otrs consola: gcloud pubsub topics publish topic-ubicacion --message '{"id_menor": "Javi", "latitud": 39.4699, "longitud": -0.3763}'
         datos_simulados_bq = [{
-            'id_niño': 'Javi',           # ID del niño que probaremos
+            'id_menor': 'Javi',           # ID del niño que probaremos
             'nombre': 'Zona Centro',
             'latitud': 39.4699,          # Plaza del Ayto. Valencia
             'longitud': -0.3763,
@@ -200,8 +200,8 @@ def run():
                 | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
                         project=args.project_id,
                         dataset=args.bigquery_dataset,
-                        table=args.historico_ubicacion_bigquery_table,
-                        schema='id:STRING, fecha:STRING, latitud:FLOAT, longitud:FLOAT, radio:FLOAT, direccion:INTEGER, duracion:STRING, id_niño:STRING, estado:STRING, zona_involucrada:STRING',                        
+                        table=args.historico_ubicaciones_bigquery_table,
+                        schema='id:STRING, fecha:STRING, latitud:FLOAT, longitud:FLOAT, radio:FLOAT, direccion:INTEGER, duracion:STRING, id_menor:STRING, estado:STRING, zona_involucrada:STRING',                        
                         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
                     )

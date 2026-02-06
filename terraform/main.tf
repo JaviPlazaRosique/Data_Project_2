@@ -92,13 +92,12 @@ resource "google_bigquery_table" "menores" {
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "nombre_familia", "type": "STRING"},
-  {"name": "DNI", "type": "STRING"},
-  {"name": "id_adulto", "type": "STRING"},
-  {"name": "fecha_nacimiento", "type": "DATE"},
-  {"name": "domicilio", "type": "STRING"},
-  {"name": "grado_discapacidad", "type": "STRING"},
-  {"name": "url_foto", "type": "STRING"}
+  {"name": "dni", "type": "STRING"},
+  {"name": "fecha_nacimiento", "type": "STRING"},
+  {"name": "direccion", "type": "STRING"},
+  {"name": "url_foto", "type": "STRING"},
+  {"name": "discapacidad", "type": "BOOLEAN"}
+
 ]
 EOF
 }
@@ -112,28 +111,27 @@ resource "google_bigquery_table" "adultos" {
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "telefono", "type": "INT64"},
-  {"name": "email", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"}
- 
+  {"name": "telefono", "type": "STRING"},
+  {"name": "id_menor", "type": "STRING"},
+  {"name": "email", "type": "STRING"}
+
 ]
 EOF
 }
 
-resource "google_bigquery_table" "historico_ubicacion" {
+resource "google_bigquery_table" "historico_ubicaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "historico_ubicacion"
+  table_id   = "historico_ubicaciones"
 
   schema = <<EOF
 [
-  {"name": "id", "type": "STRING"},
-  {"name": "fecha", "type": "STRING"},
+  {"name": "id", "type": "STRING"},  
+  {"name": "id_menor", "type": "STRING"},
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
   {"name": "radio", "type": "FLOAT"},
-  {"name": "direccion", "type": "INT64"},
-  {"name": "duracion", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"},
+  {"name": "fecha", "type": "STRING"},
+  {"name": "duracion", "type": "INT64"},
   {"name": "estado", "type": "STRING"},
   {"name": "zona_involucrada", "type": "STRING"}
 ]
@@ -147,11 +145,13 @@ resource "google_bigquery_table" "zona-restringida" {
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
-  {"name": "id_adulto", "type": "STRING"},
-  {"name": "latitud", "type": "STRING"},
-  {"name": "longitud", "type": "STRING"},  
-  {"name": "radio_advertencia", "type": "STRING"},
-  {"name": "radio_peligro", "type": "STRING"}
+  {"name": "id_menor", "type": "STRING"},
+  {"name": "nombre", "type": "STRING"},
+  {"name": "latitud", "type": "FLOAT"},
+  {"name": "longitud", "type": "FLOAT"},  
+  {"name": "radio_advertencia", "type": "FLOAT"},
+  {"name": "radio_peligro", "type": "FLOAT"}
+
 ]
 EOF
 }
