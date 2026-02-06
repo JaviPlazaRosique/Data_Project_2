@@ -18,6 +18,8 @@ import argparse
 import logging
 import uuid
 import json
+from geopy.distance import geodesic
+from datetime import datetime
 
 def TransformacionPubSub(message):
     """Función para transformar los mensajes de Pub/Sub a un formato adecuado para el procesamiento, si falla devuelve None para no romper el proceso."""
@@ -33,6 +35,87 @@ def TransformacionPubSub(message):
         return None
 
 
+class ZonasRestringidas(beam.DoFn):
+    """Clase para comparar la ubicación del menor con las zonas restringidas establecidas por el padre"""
+   
+    def process(self, element, lista_zonas):
+        # element =  #Diccionario con datos de la ubicacion del niño (viene del Pub/Sub)
+        # lista_zonas = #Lista con todas las zonas (viene de BigQuery)
+        try:
+            id_niño=element.get('id_niño')
+            lat_menor=float(element.get('latitud'))
+            long_menor=float(element.get('longitud'))
+
+        except:
+            return
+        
+        estado = "OK" 
+        zona_detectada = None
+
+        for zona in lista_zonas:
+            if id_niño == zona.get('id_niño'): 
+                lat_zona=float(zona.get('latitud'))
+                long_zona=float(zona.get('longitud'))
+                radio_peligro = float(zona.get('radio_peligro'))
+                radio_advertencia = float(zona.get('radio_advertencia'))
+
+                distancia_metros = geodesic((lat_menor, long_menor), (lat_zona, long_zona)).meters
+                if distancia_metros < radio_peligro:
+                    estado = "PELIGRO"
+                    zona_detectada = zona['nombre']
+                    break # Es lo peor que puede pasar, dejamos de mirar
+                
+                elif distancia_metros < radio_advertencia:
+                    if estado != "PELIGRO":
+                        estado = "ADVERTENCIA"
+                        zona_detectada = zona['nombre']
+
+            else:
+                continue
+        element['estado'] = estado
+        element['zona_involucrada'] = zona_detectada
+
+        logging.info(f"Procesado: Niño {id_niño} -> Estado: {estado} (Zona: {zona_detectada})")        
+
+        yield element    
+
+class EnviarNotificaciones(beam.DoFn):
+    """Clase para enviar notificaciones al padre o al menor dependiendo del estado detectado."""
+    def process(self, element):
+        estado = element.get('estado')
+
+        if estado == "OK":
+            return  
+         
+        else:
+            id_niño = element.get('id_niño')
+            zona = element.get('zona_involucrada')
+            mensaje_alerta = None
+
+            if estado == "PELIGRO":
+                logging.warning(f"🚨 ALERTA ROJA: El niño {id_niño} ha entrado en una zona de PELIGRO ({zona}). Notificando al padre.")
+                mensaje_alerta = {
+                "destinatario": "PADRE", # Aquí iría el email/teléfono real
+                "asunto": f"¡ALERTA DE {estado}!",
+                "cuerpo": f"Atención: {id_niño} ha entrado en la zona {zona}. Por favor, verifique su ubicación.",
+                "fecha y hora": element.get('fecha', datetime.now().isoformat())
+            }
+            
+            elif estado == "ADVERTENCIA":
+                logging.info(f"⚠️ ADVERTENCIA: El niño {id_niño} cerca de zona ({zona}). Notificando al menor.")
+                mensaje_alerta = {
+                "destinatario": "MENOR",
+                "asunto": f"¡ALERTA DE {estado}!",
+                "cuerpo": f"Atención: {id_niño} ha entrado en la zona restringida de {zona}.",
+                "fecha y hora": element.get('fecha', datetime.now().isoformat())
+            }
+           
+            else:
+                logging.info(f"OK: El niño {id_niño} está en una zona segura.")
+
+
+            if mensaje_alerta:
+                yield json.dumps(mensaje_alerta)
 
 """ Codigo: Proceso de Dataflow  """
 
@@ -52,23 +135,77 @@ def run():
                 required=False,
                 default='topic-ubicacion-sub',
                 help='subscripcion de ubicacion de menores en Pub/Sub.')
+    parser.add_argument(
+                '--bigquery_dataset',
+                required=False,
+                default='monitoreo_dataset',
+                help='BigQuery dataset name.')
+    parser.add_argument(
+                '--tabla_zonas',
+                required=False,
+               default='dataflow-marina:monitoreo_dataset.zona-restringida',
+                help='Tabla BigQuery con zonas restringidas.')
+    parser.add_argument(
+                '--historico_ubicacion_bigquery_table',
+                required=False,
+                default='historico_ubicacion',
+                help='Tabla BigQuery para historico de ubicaciones.')
     
     args, pipeline_opts = parser.parse_known_args()
 
     # Pipeline Options
     options = PipelineOptions(pipeline_opts, save_main_session=True, streaming=True, project=args.project_id)
+    pipeline_opts.append('--temp_location')
+    pipeline_opts.append('gs://dataflow-jamagece/temp') #aca guarda BQ los datos de las zonas
 
     # Pipeline Object
     with beam.Pipeline(argv=pipeline_opts,options=options) as p:
+        #
+        # zonas_restringidas = (
+        #     p 
+        #     | "LeerZonasBQ" >> beam.io.ReadFromBigQuery(table=args.tabla_zonas)
+        # )
 
-        (
+        #para hacer pruebas en local usamos: 
+        # pegando en otrs consola: gcloud pubsub topics publish topic-ubicacion --message '{"id_niño": "Javi", "latitud": 39.4699, "longitud": -0.3763}'
+        datos_simulados_bq = [{
+            'id_niño': 'Javi',           # ID del niño que probaremos
+            'nombre': 'Zona Centro',
+            'latitud': 39.4699,          # Plaza del Ayto. Valencia
+            'longitud': -0.3763,
+            'radio_peligro': 100,        # 100 metros
+            'radio_advertencia': 500     # 500 metros
+        }]
+
+
+        zonas_restringidas = (
+            p 
+            | "CrearZonasSimuladas" >> beam.Create(datos_simulados_bq)
+        )
+
+        mensajes_procesados = (
             p
                 | "LeerDeUbicacionPubSub" >> beam.io.ReadFromPubSub(subscription=f'projects/{args.project_id}/subscriptions/{args.ubicacion_pubsub_subscription_name}')
                 | "TransformarMensajePubSub">> beam.Map(TransformacionPubSub)
-                # | "CompararConZonasRestringidas" >>
-                | beam.Map(print)
+                | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) #ver si es necesario o lo sacamos pq los mensajes vana a venir siempre con la info que queremos
+                | "CompararConZonasRestringidas" >> beam.ParDo(ZonasRestringidas(), beam.pvalue.AsList(zonas_restringidas))
+                
         )
-
+        (mensajes_procesados
+                | "EnviarNotificaciones" >> beam.ParDo(EnviarNotificaciones())
+                | "ImprimirEnPantalla" >> beam.Map(print)
+        )
+        
+        (mensajes_procesados 
+                | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
+                        project=args.project_id,
+                        dataset=args.bigquery_dataset,
+                        table=args.historico_ubicacion_bigquery_table,
+                        schema='id:STRING, fecha:STRING, latitud:FLOAT, longitud:FLOAT, radio:FLOAT, direccion:INTEGER, duracion:STRING, id_niño:STRING, estado:STRING, zona_involucrada:STRING',                        
+                        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
+                    )
+        )
 if __name__ == '__main__':
 
     # Habilitar Logs

@@ -4,6 +4,7 @@ terraform {
     prefix  = "terraform/state" 
   }
 }
+
 # GCS Buckets
 resource "google_storage_bucket" "bucket-menores" {
          name = "bucket-fotos-menores"
@@ -126,14 +127,15 @@ resource "google_bigquery_table" "historico_ubicacion" {
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
-  {"name": "fecha", "type": "DATE"},
-  {"name": "latitud", "type": "STRING"},
-  {"name": "longitud", "type": "STRING"},
-  {"name": "radio", "type": "STRING"},
+  {"name": "fecha", "type": "STRING"},
+  {"name": "latitud", "type": "FLOAT"},
+  {"name": "longitud", "type": "FLOAT"},
+  {"name": "radio", "type": "FLOAT"},
   {"name": "direccion", "type": "INT64"},
   {"name": "duracion", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"}
- 
+  {"name": "id_niño", "type": "STRING"},
+  {"name": "estado", "type": "STRING"},
+  {"name": "zona_involucrada", "type": "STRING"}
 ]
 EOF
 }
