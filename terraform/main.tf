@@ -42,23 +42,23 @@ resource "google_pubsub_topic" "topic-user-notification" {
   name = "user-notification"
 }
 
-# Postgres SQL instance
 resource "google_sql_database_instance" "postgres_instance" {
   name = "monitoreo-menores"
   region = var.region
   database_version = "POSTGRES_17"
   deletion_protection = true
   settings {
+    edition = "ENTERPRISE"
     tier  = "db-f1-micro"
     availability_type = "ZONAL"
     disk_size  = 100
 
     ip_configuration {
-      ipv4_enabled = false
+      ipv4_enabled = true
     }
   }
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -155,4 +155,44 @@ resource "google_firestore_database" "database" {
   name = "(default)"
   location_id = var.region
   type = "FIRESTORE_NATIVE"
+}
+
+resource "google_artifact_registry_repository" "repo_artifact" {
+  location = var.region
+  repository_id = "repo-data-project-2"
+  format = "DOCKER"
+}
+
+resource "google_cloud_run_v2_service" "api_cloud_run" {
+  name = "api-cloud-run"
+  location = var.region
+  deletion_protection = false
+  template {
+    service_account = google_service_account.api_cloud_run.email
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:latest"
+      env {
+        name = "PROYECTO_REGION_INSTANCIA"
+        value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
+      }
+      env {
+        name = "USUARIO_DB"
+        value = google_sql_user.postgres_user.name
+      }
+      env {
+        name = "CONTR_DB"
+        value = google_sql_user.postgres_user.password
+      }
+      env {
+        name = "NOMBRE_BD"
+        value = google_sql_database.menores_db.name
+      }
+    }
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.postgres_instance.connection_name]
+      }
+    }
+  }
 }
