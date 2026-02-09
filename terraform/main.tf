@@ -1,9 +1,9 @@
-terraform {
-  backend "gcs" {
-    bucket  = "tfstate_data_project_2_jamagece"
-    prefix  = "terraform/state" 
-  }
-}
+# terraform {
+#   backend "gcs" {
+#     bucket  = "tfstate_data_project_2_jamagece"
+#     prefix  = "terraform/state" 
+#   }
+# }
 
 # GCS Buckets
 resource "google_storage_bucket" "bucket-menores" {
