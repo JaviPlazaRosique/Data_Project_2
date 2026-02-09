@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from datetime import date
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine, text
+from google.cloud import pubsub_v1
 import os
 import json
 
@@ -10,6 +11,11 @@ proyecto_region_instancia = os.getenv("PROYECTO_REGION_INSTANCIA")
 usuario_db = os.getenv("USUARIO_DB")
 contr_db = os.getenv("CONTR_DB")
 nombre_bd = os.getenv("NOMBRE_BD")
+id_proyecto = os.getenv("ID_PROYECTO")
+topico_ubicaciones = os.getenv("TOPICO_UBICACIONES")
+
+publisher = pubsub_v1.PublisherClient()
+topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
 
 conector = Connector()
 

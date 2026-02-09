@@ -187,6 +187,14 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
         name = "NOMBRE_BD"
         value = google_sql_database.menores_db.name
       }
+      env {
+        name = "ID_PROYECTO"
+        value = var.project_id
+      }
+      env {
+        name = "TOPICO_UBICACIONES"
+        value = google_pubsub_topic.topic-ubicacion.id
+      }
     }
     volumes {
       name = "cloudsql"
