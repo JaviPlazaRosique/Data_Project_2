@@ -1,101 +1,76 @@
 import json
 import requests
-import os
-import random
 from faker import Faker
-from sqlalchemy import create_engine, text
-from google.cloud.sql.connector import Connector, IPTypes
 
-# --- CONFIGURACIÓN DE ENTORNO ---
-# Leemos la variable de entorno API_URL (para Docker).
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+# --- CONFIGURACION ---
+API_URL = "http://localhost:8000/api/v1/adultos"
+ARCHIVO_ENTRADA = "memoria_ninos.json"    # Leemos los niños creados en el paso anterior
+ARCHIVO_SALIDA = "datos_adultos.json"     # Guardamos los adultos aquí para respaldo
 
-# Archivos de entrada y salida
-ARCHIVO_ENTRADA = "memoria_ninos.json"
-ARCHIVO_SALIDA = "memoria_padres.json"
-
-# --- CONFIGURACIÓN BASE DE DATOS (Necesaria para buscar el ID del hijo) ---
-PROYECTO = os.getenv("PROYECTO_REGION_INSTANCIA", "tu-proyecto:region:instancia")
-USER_DB = os.getenv("USUARIO_DB", "postgres")
-PASS_DB = os.getenv("CONTR_DB", "tu_contraseña")
-NAME_DB = os.getenv("NOMBRE_BD", "tu_base_datos")
-
+# Inicializamos Faker en español
 fake = Faker('es_ES')
 
-# --- FUNCIÓN AUXILIAR: CONEXIÓN A BD ---
-def obtener_id_por_dni(dni_buscado):
-    """Busca en la BD el ID autogenerado del niño usando su DNI"""
-    try:
-        conector = Connector()
-        def getconn():
-            return conector.connect(
-                PROYECTO, "pg8000", user=USER_DB, password=PASS_DB, db=NAME_DB, ip_type=IPTypes.PUBLIC
-            )
-        
-        # Creamos el motor temporalmente
-        engine = create_engine("postgresql+pg8000://", creator=getconn)
-        
-        with engine.connect() as conn:
-            query = text("SELECT id FROM menores WHERE dni = :dni")
-            result = conn.execute(query, {"dni": dni_buscado}).fetchone()
-            return result[0] if result else None
-    except Exception as e:
-        print(f"[ERROR BD] No se pudo obtener ID: {e}")
-        return None
-
-# --- FUNCIÓN PRINCIPAL ---
 def generar():
-    lista_memoria = []
-    
-    # 1. Cargamos el fichero de niños
+    # 1. CARGAR DATOS DE NIÑOS
     try:
         with open(ARCHIVO_ENTRADA, 'r', encoding='utf-8') as f:
-            ninos = json.load(f)
-        print(f"--- 1. Leídos {len(ninos)} niños del archivo local ---")
+            datos_ninos = json.load(f)
     except FileNotFoundError:
-        print(f"[ERROR] No encuentro {ARCHIVO_ENTRADA}. Ejecuta primero el script de niños.")
+        print(f"ERROR: No se encontró {ARCHIVO_ENTRADA}. Ejecuta primero el script de generación de niños.")
         return
 
-    print(f"--- 2. Generando Padres y conectando a: {API_URL}/padres ---")
+    lista_adultos = []
+    print(f"Generando padres para {len(datos_ninos)} niños...")
 
-    for i, nino in enumerate(ninos):
-        dni_nino = nino['dni']
+    # 2. GENERAR LA LISTA EN MEMORIA
+    for nino in datos_ninos:
         
-        # Obtenemos el ID real (Foreign Key)
-        id_real = obtener_id_por_dni(dni_nino)
+        # Generamos un número de teléfono móvil español realista (empiezan por 6 o 7)
+        # Faker a veces mete espacios o prefijos +34, los limpiamos.
+        telefono_raw = fake.phone_number().replace(" ", "").replace("-", "").replace("+34", "")
+        # Aseguramos que tomamos los últimos 9 dígitos
+        telefono_limpio = int(telefono_raw[-9:]) if len(telefono_raw) >= 9 else 600000000
 
-        if id_real:
-            # Generamos datos según la tabla 'padres'
-            padre = {
-                "nombre": fake.first_name(),
-                "apellidos": nino['apellidos'], # Usamos los mismos apellidos para dar realismo
-                "telefono": fake.phone_number().replace(" ", "")[:15],
-                "id_menor": id_real,            # <--- CLAVE FORÁNEA
-                "email": fake.email()
-            }
+        payload = {
+            "id": nino['id_adulto'],       # USAMOS EL ID QUE YA VINCULAMOS AL NIÑO
+            "nombre": fake.first_name(),
+            "apellidos": nino['apellido'], # Usamos el mismo apellido que el niño
+            "telefono": telefono_limpio,   
+            "email": fake.email(),
+            "id_nino": nino['id']          # VINCULACION CLAVE (Foreign Key)
+        }
+        
+        lista_adultos.append(payload)
 
-            try:
-                # Enviamos a la API (Asegúrate de que tu endpoint sea /padres o /adultos)
-                resp = requests.post(f"{API_URL}/padres", json=padre)
-                
-                if resp.status_code == 201 or resp.status_code == 200:
-                    print(f"[{i+1}/{len(ninos)}] [OK] Padre creado para niño ID {id_real}")
-                    lista_memoria.append(padre)
-                else:
-                    print(f"[{i+1}/{len(ninos)}] [ERROR {resp.status_code}] API rechazó: {resp.text}")
-
-            except requests.exceptions.ConnectionError:
-                print(f"[{i+1}/{len(ninos)}] [ERROR CRÍTICO] No conecta a la API.")
-            except Exception as e:
-                print(f"[{i+1}/{len(ninos)}] [ERROR] Excepción: {e}")
-        else:
-            print(f"[{i+1}/{len(ninos)}] [SALTADO] El niño con DNI {dni_nino} no está en la BD.")
-
-    # Guardamos el JSON
-    if lista_memoria:
+    # 3. GUARDAR EN DISCO (COPIA DE SEGURIDAD)
+    try:
         with open(ARCHIVO_SALIDA, 'w', encoding='utf-8') as f:
-            json.dump(lista_memoria, f, indent=4, ensure_ascii=False)
-        print(f"\n--- ÉXITO: {len(lista_memoria)} padres guardados en {ARCHIVO_SALIDA} ---")
+            json.dump(lista_adultos, f, indent=4, ensure_ascii=False)
+        print(f"GUARDADO LOCAL: {len(lista_adultos)} registros en {ARCHIVO_SALIDA}")
+    except Exception as e:
+        print(f"ERROR crítico guardando archivo: {e}")
+        return
+
+    # # 4. ENVIAR A LA API
+    # print(f"Iniciando envío a la API ({API_URL})...")
+
+    # for item in lista_adultos:
+    #     try:
+    #         # Enviamos la petición POST
+    #         r = requests.post(API_URL, json=item)
+            
+    #         if r.status_code == 200 or r.status_code == 201:
+    #             print(f"[API OK] Padre creado: {item['nombre']} {item['apellidos']}")
+    #         else:
+    #             print(f"[API ERROR] Fallo al crear {item['nombre']}: {r.status_code} - {r.text}")
+                
+    #     except requests.exceptions.ConnectionError:
+    #         print(f"[API FAIL] No se pudo conectar a {API_URL}. ¿Está encendido el servidor?")
+    #         break # Paramos el bucle si el servidor está caído para no spamear errores
+    #     except Exception as e:
+    #         print(f"[ERROR] Excepción general: {e}")
+            
+    # print("Proceso finalizado.")
 
 if __name__ == "__main__":
     generar()

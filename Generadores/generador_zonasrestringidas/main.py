@@ -1,73 +1,80 @@
 import json
 import requests
 import random
-import os
 from faker import Faker
 
-# --- CONFIGURACIÓN ---
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
-ARCHIVO_SALIDA = "memoria_zonas.json"
+# # --- CONFIGURACION ---
+# API_URL = "http://localhost:8000/api/v1/zonas-restringidas"
+ARCHIVO_SALIDA = "datos_zonas.json"
 CANTIDAD = 5
 
 fake = Faker('es_ES')
 
-# Coordenadas base para que las zonas caigan en las ciudades correctas
-# (Latitud, Longitud)
-CIUDADES_COORDS = {
-    "Madrid": (40.4168, -3.7038),
-    "Barcelona": (41.3851, 2.1734),
-    "Valencia": (39.4699, -0.3763)
+# Coordenadas centrales aproximadas para generar zonas cercanas
+COORDENADAS_BASE = {
+    "Madrid":    {"lat": 40.4168, "lon": -3.7038},
+    "Barcelona": {"lat": 41.3851, "lon": 2.1734},
+    "Valencia":  {"lat": 39.4699, "lon": -0.3763}
 }
 
 def generar():
     lista_zonas = []
-    print(f"--- 1. Generando {CANTIDAD} Zonas Restringidas ---")
-    print(f"--- Conectando a: {API_URL}/zonas_restringidas ---")
+    print(f"Generando {CANTIDAD} zonas restringidas en Madrid, BCN y Valencia...")
 
-    for i in range(CANTIDAD):
+    # 1. GENERAR DATOS EN MEMORIA
+    for _ in range(CANTIDAD):
         
-        # 1. Elegimos ciudad y generamos coordenadas cercanas (variación aleatoria)
-        nombre_ciudad = random.choice(list(CIUDADES_COORDS.keys()))
-        lat_base, lon_base = CIUDADES_COORDS[nombre_ciudad]
-        
-        # Generamos una desviación pequeña (aprox 1-5km alrededor del centro)
-        lat_final = lat_base + random.uniform(-0.04, 0.04)
-        lon_final = lon_base + random.uniform(-0.04, 0.04)
+        # Elegimos una ciudad al azar
+        ciudad_elegida = random.choice(list(COORDENADAS_BASE.keys()))
+        base = COORDENADAS_BASE[ciudad_elegida]
 
-        # 2. Lógica de radios (Advertencia > Peligro)
-        r_peligro = random.randint(50, 200) # Metros
-        r_advertencia = r_peligro + random.randint(20, 100)
+        # Generamos una desviación pequeña (aprox +/- 5km) para que no caigan todas en el mismo punto
+        desviacion_lat = random.uniform(-0.05, 0.05)
+        desviacion_lon = random.uniform(-0.05, 0.05)
 
-        # 3. Objeto Zona (Coincide con tu SQL)
+        # Radios
+        r_peligro = random.randint(20, 100)
+        r_advertencia = r_peligro + random.randint(20, 50)
+
         zona = {
-            "nombre": f"Zona {fake.word().capitalize()} - {nombre_ciudad}",
-            "latitud": lat_final,
-            "longitud": lon_final,
+            "nombre": f"Zona {fake.word().capitalize()} - {ciudad_elegida}",
+            "latitud": base["lat"] + desviacion_lat,
+            "longitud": base["lon"] + desviacion_lon,
             "radio_peligro": r_peligro,
-            "radio_advertencia": r_advertencia
+            "radio_advertencia": r_advertencia,
+            "descripcion": fake.sentence() # Campo opcional útil
         }
+        
+        lista_zonas.append(zona)
 
-        # 4. Enviar a la API
-        try:
-            # Asegúrate que el endpoint en tu FastAPI sea /zonas_restringidas
-            resp = requests.post(f"{API_URL}/zonas_restringidas", json=zona)
-
-            if resp.status_code == 201 or resp.status_code == 200:
-                print(f"[{i+1}/{CANTIDAD}] [OK] Zona creada en {nombre_ciudad}")
-                lista_zonas.append(zona)
-            else:
-                print(f"[{i+1}/{CANTIDAD}] [ERROR {resp.status_code}] API: {resp.text}")
-
-        except requests.exceptions.ConnectionError:
-            print(f"[{i+1}/{CANTIDAD}] [ERROR CRÍTICO] No conecta a {API_URL}")
-        except Exception as e:
-            print(f"[{i+1}/{CANTIDAD}] [ERROR] Excepción: {e}")
-
-    # 5. Guardar respaldo
-    if lista_zonas:
+    # 2. GUARDAR EN DISCO (COPIA DE SEGURIDAD)
+    try:
         with open(ARCHIVO_SALIDA, 'w', encoding='utf-8') as f:
             json.dump(lista_zonas, f, indent=4, ensure_ascii=False)
-        print(f"\n--- ÉXITO: {len(lista_zonas)} zonas guardadas en {ARCHIVO_SALIDA} ---")
+        print(f"GUARDADO LOCAL: {len(lista_zonas)} zonas en {ARCHIVO_SALIDA}")
+    except Exception as e:
+        print(f"ERROR crítico guardando archivo: {e}")
+        return
+
+    # # 3. ENVIAR A LA API
+    # print(f"Iniciando envío a la API ({API_URL})...")
+
+    # for item in lista_zonas:
+    #     try:
+    #         r = requests.post(API_URL, json=item, timeout=5)
+            
+    #         if r.status_code == 200 or r.status_code == 201:
+    #             print(f"[API OK] Zona creada: {item['nombre']}")
+    #         else:
+    #             print(f"[API ERROR] Fallo al crear {item['nombre']}: {r.status_code} - {r.text}")
+
+    #     except requests.exceptions.ConnectionError:
+    #         print(f"[API FAIL] No se pudo conectar a {API_URL}. ¿Está encendido el servidor?")
+    #         break
+    #     except Exception as e:
+    #         print(f"[ERROR] Excepción: {e}")
+
+    # print("Proceso finalizado.")
 
 if __name__ == "__main__":
     generar()
