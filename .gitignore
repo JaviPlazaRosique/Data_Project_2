@@ -1,8 +1,0 @@
-terraform.*
-.terraform
-.terraform.*
-*.tfstate
-apis/credenciales.json
-*.json
-__pycache__/
-*.env

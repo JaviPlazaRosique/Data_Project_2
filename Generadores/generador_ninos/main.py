@@ -28,8 +28,7 @@ def generar():
         # Seleccionamos una ciudad al azar de la lista restringida
         ciudad_asignada = random.choice(ciudades_permitidas)
 
-        nino = {
-            "id": id_nino,
+        menor = {
             "nombre": fake.first_name(),
             "apellido": fake.last_name() + " " + fake.last_name(),
             "nombre_familia": f"Familia {fake.last_name()}",
@@ -42,15 +41,15 @@ def generar():
             "url_foto": f"https://storage.cloud.google.com/bucket-fotos-menores/{id_nino}.jpg"
         }
 
-        print(f"Creando perfil para {nino['nombre']} {nino['apellido']} en {ciudad_asignada} (ID: {id_nino})")
+        print(f"Creando perfil para {menor['nombre']} {menor['apellido']} en {ciudad_asignada}")
 
-        lista_ninos.append(nino)
+        lista_ninos.append(menor)
 
         # Conexión a la API
         try:
-            response = requests.post(API_URL, json=nino)
+            response = requests.post(API_URL, json=menor)
             if response.status_code == 201 or response.status_code == 200:
-                print(f"Perfil creado exitosamente para {nino['nombre']}")
+                print(f"Perfil creado exitosamente para {menor['nombre']}")
             else:
                 print(f"Error al crear perfil: {response.status_code}")
         except Exception as e:

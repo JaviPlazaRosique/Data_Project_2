@@ -31,13 +31,12 @@ def generar():
         # Aseguramos que tomamos los últimos 9 dígitos
         telefono_limpio = int(telefono_raw[-9:]) if len(telefono_raw) >= 9 else 600000000
 
-        payload = {
-            "id": nino['id_adulto'],       # USAMOS EL ID QUE YA VINCULAMOS AL NIÑO
+        payload = {      # USAMOS EL ID QUE YA VINCULAMOS AL NIÑO
             "nombre": fake.first_name(),
             "apellidos": nino['apellido'], # Usamos el mismo apellido que el niño
             "telefono": telefono_limpio,   
             "email": fake.email(),
-            "id_nino": nino['id']          # VINCULACION CLAVE (Foreign Key)
+            "id_nino": random.choice([1,2,3,4,5])          # VINCULACION CLAVE (Foreign Key)
         }
         
         lista_adultos.append(payload)
