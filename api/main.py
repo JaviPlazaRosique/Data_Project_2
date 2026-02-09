@@ -107,3 +107,16 @@ async def crear_zona_restringida(zona: ZonasRestringidas, db = Depends(obtener_c
         return {"mensaje": "Zona restringida creada exitosamente"}
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
+    
+@app.post("/ubicaciones", status_code = 201)
+async def crear_ubicaciones(ubicacion):
+    try: 
+        mensaje_bytes = json.dumps(ubicacion.model_dump()).encode("utf-8")
+
+        future = publisher.publish(topic_path, mensaje_bytes)
+
+        mensaje_id = future.results()
+
+        return {"mensaje": f"Ubicacion creada: {mensaje_id}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al publicar en Pub/Sub: {str(e)}")
