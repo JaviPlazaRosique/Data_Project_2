@@ -1,9 +1,10 @@
 from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import date
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine, text
 from google.cloud import pubsub_v1
+from uuid import UUID, uuid4 
 import os
 import json
 
@@ -36,6 +37,7 @@ engine = create_engine(
 )
 
 class Menores(BaseModel):
+    id: UUID = Field(default_factory = uuid4)
     nombre: str
     apellidos: str
     dni: str
@@ -45,13 +47,25 @@ class Menores(BaseModel):
     discapacidad: bool
 
 class Adultos(BaseModel):
+    id: UUID = Field(default_factory = uuid4)
     nombre: str
     apellidos: str
     telefono: str
-    id_menor: int
+    id_menor: UUID
     email: str
 
 class ZonasRestringidas(BaseModel):
+    id: UUID = Field(default_factory = uuid4)
+    id_menor: UUID
+    nombre: str
+    latitud: float
+    longitud: float
+    radio_peligro: int
+    radio_advertencia: int
+
+class HistoricoUbicaciones(BaseModel):
+    id: UUID = Field(default_factory = uuid4)
+    id_menor: UUID
     nombre: str
     latitud: float
     longitud: float
@@ -68,8 +82,8 @@ def obtener_conexion():
 async def crear_menor(menor: Menores, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO menores (nombre, apellidos, dni, fecha_nacimiento, direccion, url_foto, discapacidad)
-            VALUES (:nombre, :apellidos, :dni, :fecha_nacimiento, :direccion, :url_foto, :discapacidad)
+            INSERT INTO menores (id, nombre, apellidos, dni, fecha_nacimiento, direccion, url_foto, discapacidad)
+            VALUES (:id, :nombre, :apellidos, :dni, :fecha_nacimiento, :direccion, :url_foto, :discapacidad)
         """)
 
         db.execute(consulta, menor.model_dump())
@@ -83,8 +97,8 @@ async def crear_menor(menor: Menores, db = Depends(obtener_conexion)):
 async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO adultos (nombre, apellidos, telefono, id_menor, email)
-            VALUES (:nombre, :apellidos, :telefono, :id_menor, :email)
+            INSERT INTO adultos (id, nombre, apellidos, telefono, id_menor, email)
+            VALUES (:id, :nombre, :apellidos, :telefono, :id_menor, :email)
         """)
 
         db.execute(consulta, adulto.model_dump())
@@ -98,8 +112,8 @@ async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
 async def crear_zona_restringida(zona: ZonasRestringidas, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO zonas_restringidas (nombre, latitud, longitud, radio_peligro, radio_advertencia)
-            VALUES (:nombre, :latitud, :longitud, :radio_peligro, :radio_advertencia)
+            INSERT INTO zonas_restringidas (id, id_menor, nombre, latitud, longitud, radio_peligro, radio_advertencia)
+            VALUES (:id, :id_menor, :nombre, :latitud, :longitud, :radio_peligro, :radio_advertencia)
         """)
 
         db.execute(consulta, zona.model_dump())
@@ -107,7 +121,21 @@ async def crear_zona_restringida(zona: ZonasRestringidas, db = Depends(obtener_c
         return {"mensaje": "Zona restringida creada exitosamente"}
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
-    
+
+@app.post("/historico_ubicaciones", status_code = 201)
+async def crear_historico_ubicacion(ubicacion: HistoricoUbicaciones, db = Depends(obtener_conexion)):
+    try: 
+        consulta = text("""
+            INSERT INTO historico_ubicaciones (id, id_menor, latitud, longitud, radio, fecha, duracion, estado)
+            VALUES (:id, :id_menor, :latitud, :longitud, :radio, :fecha, :duracion, :estado)
+        """)
+
+        db.execute(consulta, ubicacion.model_dump())
+
+        return {"mensaje": "Historico de ubicación creado exitosamente"}
+    except Exception as e: 
+        raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
+
 @app.post("/ubicaciones", status_code = 201)
 async def crear_ubicaciones(ubicacion):
     try: 
