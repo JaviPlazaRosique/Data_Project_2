@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel, Field
 from datetime import date
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine, text
-from google.cloud import pubsub_v1
+from google.cloud import pubsub_v1, storage
 from uuid import UUID, uuid4 
 import os
 import json
@@ -14,9 +14,13 @@ contr_db = os.getenv("CONTR_DB")
 nombre_bd = os.getenv("NOMBRE_BD")
 id_proyecto = os.getenv("ID_PROYECTO")
 topico_ubicaciones = os.getenv("TOPICO_UBICACIONES")
+bucket_fotos = os.getenv("BUCKET_FOTOS")
 
 publisher = pubsub_v1.PublisherClient()
 topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
+
+storage_client = storage.Client()
+bucket = storage_client.bucket(bucket_fotos)
 
 conector = Connector()
 
@@ -38,6 +42,7 @@ engine = create_engine(
 
 class Menores(BaseModel):
     id: UUID = Field(default_factory = uuid4)
+    id_adulto: UUID
     nombre: str
     apellidos: str
     dni: str
@@ -51,7 +56,6 @@ class Adultos(BaseModel):
     nombre: str
     apellidos: str
     telefono: str
-    id_menor: UUID
     email: str
 
 class ZonasRestringidas(BaseModel):
@@ -69,8 +73,10 @@ class HistoricoUbicaciones(BaseModel):
     nombre: str
     latitud: float
     longitud: float
-    radio_peligro: int
-    radio_advertencia: int
+    radio: int
+    fecha: date
+    duracion: int
+    estado: str
 
 app = FastAPI()
 
@@ -78,12 +84,27 @@ def obtener_conexion():
     with engine.begin() as conexion:
         yield conexion
 
+@app.post("/fotos_menores", status_code = 201)
+async def crear_fotos_menores(id_menor: UUID, archivo: UploadFile = File(...)):
+    try:
+        archivo_bytes = await archivo.read()
+
+        blob = bucket.blob(f"{id_menor}.png")
+
+        blob.upload_from_string(archivo_bytes, content_type = archivo.content_type)
+        return {
+            "message": "Archivo ingerido correctamente",
+            "url": f"https://console.cloud.google.com/storage/browser/{bucket_fotos}/{id_menor}.png"
+        }
+    except Exception as e:
+        raise HTTPException(status_code = 500, detail = f"Error al subir la imagen: {str(e)}")
+
 @app.post("/menores", status_code = 201)
 async def crear_menor(menor: Menores, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO menores (id, nombre, apellidos, dni, fecha_nacimiento, direccion, url_foto, discapacidad)
-            VALUES (:id, :nombre, :apellidos, :dni, :fecha_nacimiento, :direccion, :url_foto, :discapacidad)
+            INSERT INTO menores (id, id_adulto, nombre, apellidos, dni, fecha_nacimiento, direccion, url_foto, discapacidad)
+            VALUES (:id, :id_adulto, :nombre, :apellidos, :dni, :fecha_nacimiento, :direccion, :url_foto, :discapacidad)
         """)
 
         db.execute(consulta, menor.model_dump())
@@ -97,8 +118,8 @@ async def crear_menor(menor: Menores, db = Depends(obtener_conexion)):
 async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO adultos (id, nombre, apellidos, telefono, id_menor, email)
-            VALUES (:id, :nombre, :apellidos, :telefono, :id_menor, :email)
+            INSERT INTO adultos (id, nombre, apellidos, telefono, email)
+            VALUES (:id, :nombre, :apellidos, :telefono, :email)
         """)
 
         db.execute(consulta, adulto.model_dump())
@@ -143,7 +164,7 @@ async def crear_ubicaciones(ubicacion):
 
         future = publisher.publish(topic_path, mensaje_bytes)
 
-        mensaje_id = future.results()
+        mensaje_id = future.result()
 
         return {"mensaje": f"Ubicacion creada: {mensaje_id}"}
     except Exception as e:

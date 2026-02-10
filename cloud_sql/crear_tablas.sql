@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS menores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_adulto UUID REFERENCES adultos(id),
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100),
     dni VARCHAR(20) UNIQUE,
@@ -16,7 +17,6 @@ CREATE TABLE IF NOT EXISTS adultos (
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100),
     telefono VARCHAR(20), 
-    id_menor UUID REFERENCES menores(id),
     email VARCHAR(100)
 );
 
