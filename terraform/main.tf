@@ -122,7 +122,10 @@ EOF
 resource "google_bigquery_table" "historico_ubicaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
   table_id   = "historico_ubicaciones"
-
+  time_partitioning {
+      type  = "DAY"
+      field = "fecha"
+    }
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},  
@@ -130,7 +133,7 @@ resource "google_bigquery_table" "historico_ubicaciones" {
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
   {"name": "radio", "type": "FLOAT"},
-  {"name": "fecha", "type": "STRING"},
+  {"name": "fecha", "type": "TIMESTAMP"},
   {"name": "duracion", "type": "INT64"},
   {"name": "estado", "type": "STRING"},
   {"name": "zona_involucrada", "type": "STRING"}
