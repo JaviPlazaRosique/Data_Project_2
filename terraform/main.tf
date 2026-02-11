@@ -5,6 +5,25 @@ terraform {
   }
 }
 
+resource "google_compute_network" "vpc_monitoreo_menores" {
+  name = "vpc-monitoreo-menores"
+  project = var.project_id
+}
+
+resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
+  name = "rango-ip-monitoreo-menores"
+  purpose = "VPC_PEERING"
+  address_type = "INTERNAL"
+  network = google_compute_network.vpc_monitoreo_menores.id
+  prefix_length = 16
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network = google_compute_network.vpc_monitoreo_menores.id
+  service  = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.rango_ip_monitoreo_menores.name]
+}
+
 resource "google_storage_bucket" "bucket-menores" {
   name = "bucket-fotos-menores-${var.project_id}"
   location = var.region
@@ -46,7 +65,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   name = "monitoreo-menores"
   region = var.region
   database_version = "POSTGRES_17"
-  deletion_protection = true
+  deletion_protection = false
   settings {
     edition = "ENTERPRISE"
     tier  = "db-f1-micro"
@@ -54,18 +73,26 @@ resource "google_sql_database_instance" "postgres_instance" {
     disk_size  = 100
 
     ip_configuration {
-      ipv4_enabled = true
+      ipv4_enabled = false
+      private_network = google_compute_network.vpc_monitoreo_menores.id
     }
   }
   lifecycle {
     prevent_destroy = true
   }
+  depends_on = [google_service_networking_connection.private_vpc_connection]
+}
+
+resource "random_password" "contraseña-monitoreo-menores" {
+  length = 16
+  special = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
 resource "google_sql_user" "postgres_user" {
-  name = "postgres"
+  name = "admin"
   instance = google_sql_database_instance.postgres_instance.name
-  password = var.password-postgres
+  password = random_password.contraseña-monitoreo-menores.result
 }
 
 resource "google_sql_database" "menores_db" {
@@ -73,7 +100,6 @@ resource "google_sql_database" "menores_db" {
   instance = google_sql_database_instance.postgres_instance.name
 }
 
-# BigQuery Resources
 resource "google_bigquery_dataset" "monitoreo_dataset" {
   dataset_id  = "monitoreo_dataset"
   project = var.project_id
@@ -163,6 +189,23 @@ resource "google_artifact_registry_repository" "repo_artifact" {
   format = "DOCKER"
 }
 
+locals {
+  api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
+}
+
+resource "docker_image" "imagen_api" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:${local.api_hash}"
+  build {
+    context = "../api/"
+    dockerfile = "Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "imagen_api_push" {
+  name = docker_image.imagen_api.name
+  keep_remotely = true
+}
+
 resource "google_cloud_run_v2_service" "api_cloud_run" {
   name = "api-cloud-run"
   location = var.region
@@ -170,7 +213,10 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
   template {
     service_account = google_service_account.api_cloud_run.email
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:latest"
+      image = docker_registry_image.imagen_api_push.name
+      ports {
+        container_port = 8000
+      }
       env {
         name = "PROYECTO_REGION_INSTANCIA"
         value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
@@ -193,14 +239,27 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       env {
         name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.id
+        value = google_pubsub_topic.topic-ubicacion.name
+      }
+      env {
+        name = "BUCKET_FOTOS"
+        value = google_storage_bucket.bucket-menores.name
       }
     }
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [google_sql_database_instance.postgres_instance.connection_name]
+    vpc_access {
+      network_interfaces {
+        network    = google_compute_network.vpc_monitoreo_menores.id
       }
+      egress = "ALL_TRAFFIC"
     }
   }
+  depends_on = [docker_registry_image.imagen_api_push]
+}
+
+resource "local_file" "env_generadores" {
+  filename = "${path.module}/../Generadores/.env"
+  content  = <<-EOT
+    BUCKET_FOTOS = ${google_storage_bucket.bucket-menores.name}
+    URL_API = ${google_cloud_run_v2_service.api_cloud_run.uri}
+  EOT
 }

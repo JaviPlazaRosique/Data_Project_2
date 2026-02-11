@@ -31,7 +31,7 @@ def conexion_db():
         user = usuario_db,
         password = contr_db,
         db = nombre_bd,
-        ip_type = IPTypes.PUBLIC
+        ip_type = IPTypes.PRIVATE
     )
     return conexion 
 

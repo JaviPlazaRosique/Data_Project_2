@@ -7,6 +7,7 @@ resource "google_project_iam_member" "api_cloud_run_roles" {
     for_each = toset([
     "roles/cloudsql.client",
     "roles/pubsub.publisher",
+    "roles/storage.objectCreator",
     "roles/logging.logWriter",
     ])
     project = var.project_id
