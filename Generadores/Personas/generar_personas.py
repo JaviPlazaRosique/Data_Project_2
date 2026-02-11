@@ -10,8 +10,8 @@ import requests
 import io
 import sys
 
-bucket_fotos = os.getenv("BUCKET_FOTOS", "bucket-fotos-menores-data-project-2526")
-url_api = os.getenv("URL_API", "https://api-cloud-run-ac3mjxadda-oa.a.run.app")
+bucket_fotos = os.getenv("BUCKET_FOTOS")
+url_api = os.getenv("URL_API")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 pipe = StableDiffusionPipeline.from_pretrained(
