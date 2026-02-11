@@ -58,6 +58,17 @@ class ZonasRestringidas(BaseModel):
     radio_peligro: int
     radio_advertencia: int
 
+class Ubicaciones(BaseModel):
+    user_id: int
+    timestamp: str
+    latitude: float
+    longitude: float
+    node_id: int
+    street_name: str
+    road_type: str
+    poi_name: str
+    poi_type: str
+
 app = FastAPI()
 
 def obtener_conexion():
@@ -78,6 +89,19 @@ async def crear_menor(menor: Menores, db = Depends(obtener_conexion)):
     
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
+
+@app.get("/menores/id_direccion")
+async def obtener_ids_menores(db = Depends(obtener_conexion)):
+    try:
+        consulta = text("""SELECT id, direccion FROM menores""")
+
+        resultado = db.execute(consulta)
+
+        menores = [{"id": row[0], "direccion": row[1]} for row in resultado]
+
+        return {"menores": menores}
+    except Exception as e:
+        raise HTTPException(status_code = 500, detail = f"Error al obtener IDs: {str(e)}")
 
 @app.post("/adultos", status_code = 201)
 async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
@@ -109,7 +133,7 @@ async def crear_zona_restringida(zona: ZonasRestringidas, db = Depends(obtener_c
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
     
 @app.post("/ubicaciones", status_code = 201)
-async def crear_ubicaciones(ubicacion):
+async def crear_ubicaciones(ubicacion: Ubicaciones):
     try: 
         mensaje_bytes = json.dumps(ubicacion.model_dump()).encode("utf-8")
 
