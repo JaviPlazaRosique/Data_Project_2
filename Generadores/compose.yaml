@@ -1,0 +1,15 @@
+services:
+  personas:
+    build: 
+      context: ./Personas 
+      dockerfile: Dockerfile
+    image: generador_personas:latest
+    env_file:
+      - .env
+  ubicaciones:
+    build: 
+      context: ./Ubicaciones 
+      dockerfile: Dockerfile
+    image: generador_ubicaciones:latest
+    env_file:
+      - .env
