@@ -27,7 +27,7 @@ conector = Connector()
 def conexion_db():
     conexion =  conector.connect(
         proyecto_region_instancia, 
-        "psycopg",
+        "pg8000",
         user = usuario_db,
         password = contr_db,
         db = nombre_bd,
@@ -36,7 +36,7 @@ def conexion_db():
     return conexion 
 
 engine = create_engine(
-    "postgresql+psycopg2://", 
+    "postgresql+pg8000://", 
     creator = conexion_db
 )
 
@@ -79,6 +79,65 @@ class HistoricoUbicaciones(BaseModel):
     estado: str
 
 app = FastAPI()
+
+def crear_tablas():
+    with engine.connect() as conn:
+        conn.execute(text("""
+            CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS adultos (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                nombre VARCHAR(100) NOT NULL,
+                apellidos VARCHAR(100),
+                telefono VARCHAR(20), 
+                email VARCHAR(100)
+            );
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS menores (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                id_adulto UUID REFERENCES adultos(id),
+                nombre VARCHAR(100),
+                apellidos VARCHAR(100),
+                dni VARCHAR(50),
+                fecha_nacimiento DATE,
+                direccion VARCHAR(100),
+                url_foto VARCHAR(255),
+                discapacidad BOOLEAN
+            );
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS zonas_restringidas (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                id_menor UUID REFERENCES menores(id),
+                nombre VARCHAR(100),
+                latitud DOUBLE PRECISION NOT NULL,
+                longitud DOUBLE PRECISION NOT NULL,
+                radio_peligro INTEGER,
+                radio_advertencia INTEGER
+            );
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS historico_ubicaciones (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                id_menor UUID REFERENCES menores(id),
+                latitud DOUBLE PRECISION NOT NULL,
+                longitud DOUBLE PRECISION NOT NULL,
+                radio INTEGER,
+                fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                duracion INTEGER,
+                estado VARCHAR(20)
+            );
+        """))
+        conn.commit()
+
+@app.on_event("startup")
+def startup_event():
+    try:
+        crear_tablas()
+    except Exception as e:
+        print(f"Error creando tablas: {e}")
 
 def obtener_conexion():
     with engine.begin() as conexion:

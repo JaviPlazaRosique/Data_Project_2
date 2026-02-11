@@ -214,8 +214,21 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
     service_account = google_service_account.api_cloud_run.email
     containers {
       image = docker_registry_image.imagen_api_push.name
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
       ports {
         container_port = 8000
+      }
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 24
+        tcp_socket {
+          port = 8000
+        }
       }
       env {
         name = "PROYECTO_REGION_INSTANCIA"
@@ -250,7 +263,13 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       network_interfaces {
         network    = google_compute_network.vpc_monitoreo_menores.id
       }
-      egress = "ALL_TRAFFIC"
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.postgres_instance.connection_name]
+      }
     }
   }
   depends_on = [docker_registry_image.imagen_api_push]

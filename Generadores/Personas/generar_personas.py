@@ -8,9 +8,10 @@ import os
 import torch
 import requests
 import io
+import sys
 
-bucket_fotos = os.getenv("BUCKET_FOTOS")
-url_api = os.getenv("URL_API")
+bucket_fotos = os.getenv("BUCKET_FOTOS", "bucket-fotos-menores-data-project-2526")
+url_api = os.getenv("URL_API", "https://api-cloud-run-ac3mjxadda-oa.a.run.app")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 pipe = StableDiffusionPipeline.from_pretrained(
@@ -94,8 +95,14 @@ if __name__ == "__main__":
             if res.status_code == 201:
                 lista_adultos.append(adulto)
                 print(f"Adulto registrado: {adulto['nombre']} {adulto['apellidos']}")
+            else:
+                print(f"Error al registrar adulto ({res.status_code}): {res.text}")
         except Exception as e:
             print(f"Error: {e}")
+
+    if not lista_adultos:
+        print("No se han podido registrar adultos. Abortando generación de menores.")
+        sys.exit(1)
 
     for _ in range(menores):
         tutor = random.choice(lista_adultos)
@@ -110,5 +117,3 @@ if __name__ == "__main__":
                 print(f"Menor {datos_menor['nombre']} asignado a {tutor['nombre']}")
         except Exception as e:
             print(f"Error: {e}")
-
-
