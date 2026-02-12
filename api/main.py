@@ -78,6 +78,17 @@ class HistoricoUbicaciones(BaseModel):
     duracion: int
     estado: str
 
+class Ubicaciones(BaseModel):
+    user_id: int
+    timestamp: str
+    latitude: float
+    longitude: float
+    node_id: int
+    street_name: str
+    road_type: str
+    poi_name: str
+    poi_type: str
+
 app = FastAPI()
 
 def crear_tablas():
