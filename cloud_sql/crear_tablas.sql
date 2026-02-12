@@ -1,5 +1,8 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE IF NOT EXISTS menores (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_adulto UUID REFERENCES adultos(id),
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100),
     dni VARCHAR(20) UNIQUE,
@@ -10,17 +13,16 @@ CREATE TABLE IF NOT EXISTS menores (
 );
 
 CREATE TABLE IF NOT EXISTS adultos (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100),
     telefono VARCHAR(20), 
-    id_menor INTEGER REFERENCES menores(id),
     email VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS historico_ubicaciones (
-    id SERIAL PRIMARY KEY,
-    id_menor INTEGER REFERENCES menores(id),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_menor UUID REFERENCES menores(id),
     latitud DOUBLE PRECISION NOT NULL,
     longitud DOUBLE PRECISION NOT NULL,
     radio INTEGER,
@@ -30,8 +32,8 @@ CREATE TABLE IF NOT EXISTS historico_ubicaciones (
 );
 
 CREATE TABLE IF NOT EXISTS zonas_restringidas (
-    id SERIAL PRIMARY KEY,
-    id_menor INTEGER REFERENCES menores(id),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id_menor UUID REFERENCES menores(id),
     nombre VARCHAR(100),
     latitud DOUBLE PRECISION NOT NULL,
     longitud DOUBLE PRECISION NOT NULL,

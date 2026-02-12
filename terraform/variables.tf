@@ -13,7 +13,6 @@ variable "zone" {
   type = string
 }
 
-
 variable "password-postgres" {
   description = "La contraseña para el usuario de postgres en Cloud SQL"
   type = string
