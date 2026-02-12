@@ -13,6 +13,7 @@ from apache_beam.transforms.window import Sessions, SlidingWindows
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils.timestamp import Timestamp
 
+
 # B. Librerias Python 
 import argparse
 import logging
@@ -20,6 +21,7 @@ import uuid
 import json
 from geopy.distance import geodesic
 from datetime import datetime
+from google.cloud import firestore
 
 def TransformacionPubSub(message):
     """Función para transformar los mensajes de Pub/Sub a un formato adecuado para el procesamiento, si falla devuelve None para no romper el proceso."""
@@ -75,6 +77,9 @@ class ZonasRestringidas(beam.DoFn):
         element['estado'] = estado
         element['zona_involucrada'] = zona_detectada
 
+        if 'fecha' not in element:
+            element['fecha'] = datetime.now().isoformat()
+
         logging.info(f"Procesado: Niño {id_menor} -> Estado: {estado} (Zona: {zona_detectada})")        
 
         yield element    
@@ -117,6 +122,50 @@ class EnviarNotificaciones(beam.DoFn):
             if mensaje_alerta:
                 yield json.dumps(mensaje_alerta)
 
+
+class GuardarEnFirestore(beam.DoFn):
+    """Clase para guardar el historial de ubicaciones en Firestore."""
+    def __init__(self, project_id):
+        self.project_id = project_id
+
+    def setup(self):
+        self.db = firestore.Client(project=self.project_id)
+
+    def process(self, element):
+        id_menor = element['id_menor']
+        estado = element['estado']
+
+        # ubicacion
+        doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
+        datos_ubicacion = {
+            "latitud": element['latitud'],
+            "longitud": element['longitud'],
+            "estado": estado,
+            "fecha": firestore.SERVER_TIMESTAMP 
+        }
+        doc_ref_ubic.set(datos_ubicacion, merge=True) #merge=true para que no borre datos anteriores como info del niño, solo actualiza la ubicacion y el estado.
+        logging.info(f"Ubicación actualizada: {id_menor}")
+
+        # notificaciones
+        if estado != "OK": 
+            destinatario = "PADRE" if estado == "PELIGRO" else "MENOR"
+            datos_alerta = {
+                "id_menor": id_menor,
+                "tipo": estado, # PELIGRO o ADVERTENCIA
+                "mensaje": f"El menor está en {element.get('zona_involucrada')}",
+                "destinatario": destinatario,
+                "fecha": firestore.SERVER_TIMESTAMP,
+                "leido": False
+            }
+            doc_ref_alerta = self.db.collection('notificaciones').add(datos_alerta)
+
+            logging.info(f"Documento de notificación escrito en Firestore: {doc_ref_alerta[1].id}")
+        
+        yield element
+
+
+
+
 """ Codigo: Proceso de Dataflow  """
 
 def run():
@@ -150,6 +199,7 @@ def run():
                 required=False,
                 default='historico_ubicaciones',
                 help='Tabla BigQuery para historico de ubicaciones.')
+
     
     args, pipeline_opts = parser.parse_known_args()
 
@@ -206,6 +256,11 @@ def run():
                         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
                     )
         )
+        (mensajes_procesados
+            | "GuardarEnFirestore" >> beam.ParDo(GuardarEnFirestore(args.project_id)) 
+        )
+        
+
 if __name__ == '__main__':
 
     # Habilitar Logs
