@@ -1,9 +1,9 @@
-terraform {
-  backend "gcs" {
-    bucket  = "tfstate_data_project_2_jamagece"
-    prefix  = "terraform/state" 
-  }
-}
+# terraform {
+#   backend "gcs" {
+#     bucket  = "tfstate_data_project_2_jamagece"
+#     prefix  = "terraform/state" 
+#   }
+# }
 
 resource "google_storage_bucket" "bucket-menores" {
   name = "bucket-fotos-menores-${var.project_id}"
@@ -118,11 +118,14 @@ EOF
 resource "google_bigquery_table" "historico_ubicaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
   table_id = "historico_ubicacion"
-
+  time_partitioning {
+    type  = "DAY"
+    field = "fecha"
+  }
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
-  {"name": "fecha", "type": "DATE"},
+  {"name": "fecha", "type": "TIMESTAMP"},
   {"name": "latitud", "type": "STRING"},
   {"name": "longitud", "type": "STRING"},
   {"name": "radio", "type": "STRING"},
@@ -182,50 +185,50 @@ resource "google_firestore_document" "schema_notificaciones" {
   })
 }
 
-resource "google_artifact_registry_repository" "repo_artifact" {
-  location = var.region
-  repository_id = "repo-data-project-2"
-  format = "DOCKER"
-}
+# resource "google_artifact_registry_repository" "repo_artifact" {
+#   location = var.region
+#   repository_id = "repo-data-project-2"
+#   format = "DOCKER"
+# }
 
-resource "google_cloud_run_v2_service" "api_cloud_run" {
-  name = "api-cloud-run"
-  location = var.region
-  deletion_protection = false
-  template {
-    service_account = google_service_account.api_cloud_run.email
-    containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:latest"
-      env {
-        name = "PROYECTO_REGION_INSTANCIA"
-        value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
-      }
-      env {
-        name = "USUARIO_DB"
-        value = google_sql_user.postgres_user.name
-      }
-      env {
-        name = "CONTR_DB"
-        value = google_sql_user.postgres_user.password
-      }
-      env {
-        name = "NOMBRE_BD"
-        value = google_sql_database.menores_db.name
-      }
-      env {
-        name = "ID_PROYECTO"
-        value = var.project_id
-      }
-      env {
-        name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.id
-      }
-    }
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [google_sql_database_instance.postgres_instance.connection_name]
-      }
-    }
-  }
-}
+# resource "google_cloud_run_v2_service" "api_cloud_run" {
+#   name = "api-cloud-run"
+#   location = var.region
+#   deletion_protection = false
+#   template {
+#     service_account = google_service_account.api_cloud_run.email
+#     containers {
+#       image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:latest"
+#       env {
+#         name = "PROYECTO_REGION_INSTANCIA"
+#         value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
+#       }
+#       env {
+#         name = "USUARIO_DB"
+#         value = google_sql_user.postgres_user.name
+#       }
+#       env {
+#         name = "CONTR_DB"
+#         value = google_sql_user.postgres_user.password
+#       }
+#       env {
+#         name = "NOMBRE_BD"
+#         value = google_sql_database.menores_db.name
+#       }
+#       env {
+#         name = "ID_PROYECTO"
+#         value = var.project_id
+#       }
+#       env {
+#         name = "TOPICO_UBICACIONES"
+#         value = google_pubsub_topic.topic-ubicacion.id
+#       }
+#     }
+#     volumes {
+#       name = "cloudsql"
+#       cloud_sql_instance {
+#         instances = [google_sql_database_instance.postgres_instance.connection_name]
+#       }
+#     }
+#   }
+# }
