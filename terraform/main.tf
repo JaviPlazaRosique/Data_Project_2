@@ -5,24 +5,24 @@
 #   }
 # }
 
-resource "google_compute_network" "vpc_monitoreo_menores" {
-  name = "vpc-monitoreo-menores"
-  project = var.project_id
-}
+# resource "google_compute_network" "vpc_monitoreo_menores" {
+#   name = "vpc-monitoreo-menores"
+#   project = var.project_id
+# }
 
-resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
-  name = "rango-ip-monitoreo-menores"
-  purpose = "VPC_PEERING"
-  address_type = "INTERNAL"
-  network = google_compute_network.vpc_monitoreo_menores.id
-  prefix_length = 16
-}
+# resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
+#   name = "rango-ip-monitoreo-menores"
+#   purpose = "VPC_PEERING"
+#   address_type = "INTERNAL"
+#   network = google_compute_network.vpc_monitoreo_menores.id
+#   prefix_length = 16
+# }
 
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network = google_compute_network.vpc_monitoreo_menores.id
-  service  = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.rango_ip_monitoreo_menores.name]
-}
+# resource "google_service_networking_connection" "private_vpc_connection" {
+#   network = google_compute_network.vpc_monitoreo_menores.id
+#   service  = "servicenetworking.googleapis.com"
+#   reserved_peering_ranges = [google_compute_global_address.rango_ip_monitoreo_menores.name]
+# }
 
 resource "google_storage_bucket" "bucket-menores" {
   name = "bucket-fotos-menores-${var.project_id}"
@@ -83,11 +83,11 @@ resource "google_sql_database_instance" "postgres_instance" {
   depends_on = [google_service_networking_connection.private_vpc_connection]
 }
 
-resource "random_password" "contraseña-monitoreo-menores" {
-  length = 16
-  special = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
-}
+# resource "random_password" "contraseña-monitoreo-menores" {
+#   length = 16
+#   special = true
+#   override_special = "!#$%&*()-_=+[]{}<>:?"
+# }
 
 resource "google_sql_user" "postgres_user" {
   name = "admin"
