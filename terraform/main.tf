@@ -180,7 +180,6 @@ resource "google_firestore_document" "schema_notificaciones" {
     "descripcion": { "stringValue": "Log de alertas para Padres (Peligro) y Niños (Advertencia)" },
     "estructura": { "stringValue": "id_menor, tipo (PELIGRO/ADVERTENCIA), mensaje, fecha, destinatario" }
   })
-  type = "FIRESTORE_NATIVE"
 }
 
 resource "google_artifact_registry_repository" "repo_artifact" {
