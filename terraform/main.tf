@@ -166,3 +166,27 @@ resource "google_firestore_database" "database" {
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
 }
+
+resource "google_firestore_document" "schema_ubicaciones" {
+  project     = var.project_id
+  database    = google_firestore_database.database.name
+  collection  = "ubicaciones"
+  document_id = "schema_info" 
+  
+  fields      = jsonencode({
+    "descripcion": { "stringValue": "Ubicación en tiempo real. Un documento por niño." },
+    "ejemplo": { "stringValue": "id_menor: Javi, lat: 39.4, long: -0.3, ultima_act: TIMESTAMP" }
+  })
+}
+
+resource "google_firestore_document" "schema_notificaciones" {
+  project     = var.project_id
+  database    = google_firestore_database.database.name
+  collection  = "notificaciones"
+  document_id = "schema_info"
+  
+  fields      = jsonencode({
+    "descripcion": { "stringValue": "Log de alertas para Padres (Peligro) y Niños (Advertencia)" },
+    "estructura": { "stringValue": "id_menor, tipo (PELIGRO/ADVERTENCIA), mensaje, fecha, destinatario" }
+  })
+}
