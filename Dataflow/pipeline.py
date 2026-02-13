@@ -17,7 +17,6 @@ from apache_beam.utils.timestamp import Timestamp
 # B. Librerias Python 
 import argparse
 import logging
-import uuid
 import json
 from geopy.distance import geodesic
 from datetime import datetime
