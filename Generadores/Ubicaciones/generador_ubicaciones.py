@@ -35,7 +35,7 @@ def obtener_id_direccion_menores():
 
         return response.json().get("menores", [])
     except requests.exceptions.RequestException as e:
-        print(f"Error al obtener los IDs de los menores: {e}")
+        print(f"Error al obtener los IDs y direccionesº de los menores: {e}")
         return []
 
 def generar_movimiento(menor):
