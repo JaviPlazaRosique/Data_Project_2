@@ -8,24 +8,26 @@ import time
 url_api = os.getenv("URL_API")
 
 class MandarDatoAPI(PersonMovementGenerator):
-    def mandar_ubicaciones(self, position, filename, mode='a'):
+    def write_element(self, position, filename, mode='a'):
         try:
             ubicacion = {
-                "user_id": int(position['user_id']),
+                "user_id": str(position['user_id']),
                 "timestamp": position['timestamp'],
                 "latitude": float(position['latitude']),
                 "longitude": float(position['longitude']),
-                "node_id": int(position['node_id']) if position.get('node_id') else 0,
-                "street_name": str(position.get('street_name', '')),
-                "road_type": str(position.get('road_type', '')),
-                "poi_name": str(position.get('poi_name', '')),
-                "poi_type": str(position.get('poi_type', ''))
+                "node_id": int(position['node_id']) if position.get('node_id') is not None else 0,
+                "street_name": str(position.get('street_name') or ''),
+                "road_type": str(position.get('road_type') or ''),
+                "poi_name": str(position.get('poi_name') or ''),
+                "poi_type": str(position.get('poi_type') or '')
             }
-            requests.post(f"{url_api}/ubicaciones", json=ubicacion)
+            response = requests.post(f"{url_api}/ubicaciones", json=ubicacion)
+            if response.status_code >= 400:
+                print(f"Error enviando ubicacion: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"Error enviando ubicacion: {e}")
 
-def obtener_ids_menores():
+def obtener_id_direccion_menores():
     try:
         response = requests.get(f"{url_api}/menores/id_direccion")
 
@@ -42,12 +44,12 @@ def generar_movimiento(menor):
 
         generador = MandarDatoAPI(place_name=menor['direccion'])
         
-        generador.generate_continuous_movement(output_file="", user_id=menor['id'])
+        generador.generate_continuous_movement(output_file="/dev/null", user_id=menor['id'])
     except Exception as e:
         print(f"Error generando movimiento para menor {menor['id']}: {e}")
 
 if __name__ == "__main__":
-    menores = obtener_ids_menores()
+    menores = obtener_id_direccion_menores()
     threads = []
     
     for menor in menores:

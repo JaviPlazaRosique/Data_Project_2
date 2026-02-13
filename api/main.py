@@ -79,7 +79,7 @@ class HistoricoUbicaciones(BaseModel):
     estado: str
 
 class Ubicaciones(BaseModel):
-    user_id: int
+    user_id: str
     timestamp: str
     latitude: float
     longitude: float
