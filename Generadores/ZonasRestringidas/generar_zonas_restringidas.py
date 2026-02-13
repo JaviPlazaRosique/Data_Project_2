@@ -4,10 +4,11 @@ import random
 import uuid
 
 url_api = os.getenv("URL_API")
+api_key = os.getenv("API_KEY")
 
 def obtener_id_direccion_menores():
     try:
-        response = requests.get(f"{url_api}/menores/id_direccion")
+        response = requests.get(f"{url_api}/menores/id_direccion", headers={"X-API-Key": api_key})
 
         response.raise_for_status()
 
@@ -54,7 +55,7 @@ if __name__ == "__main__":
                 }
                 
                 try:
-                    response = requests.post(f"{url_api}/zonas_restringidas", json=zona)
+                    response = requests.post(f"{url_api}/zonas_restringidas", json=zona, headers={"X-API-Key": api_key})
 
                     if response.status_code == 201:
                         print(f"Zona restringida creada para menor {menor['id']}")

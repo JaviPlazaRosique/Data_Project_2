@@ -12,6 +12,7 @@ import sys
 
 bucket_fotos = os.getenv("BUCKET_FOTOS")
 url_api = os.getenv("URL_API")
+api_key = os.getenv("API_KEY")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 pipe = StableDiffusionPipeline.from_pretrained(
@@ -38,7 +39,7 @@ def foto_menor(id_menor, sexo_prompt):
     archivos = {"archivo": (f"{id_menor}.png", img_buffer, "image/png")}
     
     try:
-        requests.post(f"{url_api}/fotos_menores", params = parametros, files = archivos)
+        requests.post(f"{url_api}/fotos_menores", params = parametros, files = archivos, headers={"X-API-Key": api_key})
 
         print(f"Foto generada y subida con exito")
     except Exception as e:
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     for _ in range(adultos):
         adulto = generar_adulto()
         try:
-            res = requests.post(f"{url_api}/adultos", json=adulto)
+            res = requests.post(f"{url_api}/adultos", json=adulto, headers={"X-API-Key": api_key})
             if res.status_code == 201:
                 lista_adultos.append(adulto)
                 print(f"Adulto registrado: {adulto['nombre']} {adulto['apellidos']}")
@@ -112,7 +113,7 @@ if __name__ == "__main__":
         foto_menor(datos_menor["id"], sexo_prompt)
         
         try:
-            res = requests.post(f"{url_api}/menores", json=datos_menor)
+            res = requests.post(f"{url_api}/menores", json=datos_menor, headers={"X-API-Key": api_key})
             if res.status_code == 201:
                 print(f"Menor {datos_menor['nombre']} asignado a {tutor['nombre']}")
         except Exception as e:

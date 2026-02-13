@@ -6,6 +6,7 @@ import threading
 import time
 
 url_api = os.getenv("URL_API")
+api_key = os.getenv("API_KEY")
 
 class MandarDatoAPI(PersonMovementGenerator):
     def write_element(self, position, filename, mode='a'):
@@ -21,7 +22,7 @@ class MandarDatoAPI(PersonMovementGenerator):
                 "poi_name": str(position.get('poi_name') or ''),
                 "poi_type": str(position.get('poi_type') or '')
             }
-            response = requests.post(f"{url_api}/ubicaciones", json=ubicacion)
+            response = requests.post(f"{url_api}/ubicaciones", json=ubicacion, headers={"X-API-Key": api_key})
             if response.status_code >= 400:
                 print(f"Error enviando ubicacion: {response.status_code} - {response.text}")
         except Exception as e:
@@ -29,7 +30,7 @@ class MandarDatoAPI(PersonMovementGenerator):
 
 def obtener_id_direccion_menores():
     try:
-        response = requests.get(f"{url_api}/menores/id_direccion")
+        response = requests.get(f"{url_api}/menores/id_direccion", headers={"X-API-Key": api_key})
 
         response.raise_for_status()
 
