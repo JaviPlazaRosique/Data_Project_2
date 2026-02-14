@@ -339,3 +339,4 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   }
   depends_on = [docker_registry_image.imagen_web_push]
 }
+
