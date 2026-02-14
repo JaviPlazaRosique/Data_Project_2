@@ -29,6 +29,12 @@ resource "google_service_account" "web_cloud_run" {
 
 resource "google_project_iam_member" "web_cloud_run_roles" {
     for_each = toset([
-        
-    ])
+        "roles/cloudsql.client",
+        "roles/datastore.user",
+        "roles/storage.objectUser",
+        "roles/logging.logWriter",
+        ])
+    project = var.project_id
+    role = each.key
+    member = "serviceAccount:${google_service_account.web_cloud_run.email}"
 }
