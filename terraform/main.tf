@@ -5,6 +5,13 @@ terraform {
   }
 }
 
+resource "google_project_service" "activar_servicios_proyecto" {
+  for_each = toset(var.servicios_gcp)
+  project = var.project_id
+  service = each.value
+  disable_on_destroy = false
+}
+
 resource "google_compute_network" "vpc_monitoreo_menores" {
   name = "vpc-monitoreo-menores"
   project = var.project_id
@@ -281,4 +288,54 @@ resource "local_file" "env_generadores" {
     BUCKET_FOTOS = ${google_storage_bucket.bucket-menores.name}
     URL_API = ${google_cloud_run_v2_service.api_cloud_run.uri}
   EOT
+}
+
+resource "docker_image" "imagen_web" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/web:${local.api_hash}"
+  build {
+    context = "../web/"
+    dockerfile = "Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "imagen_web_push" {
+  name = docker_image.imagen_web.name
+  keep_remotely = true
+}
+
+resource "google_cloud_run_v2_service" "web_cloud_run" {
+  name = "web-cloud-run"
+  location = var.region
+  deletion_protection = false
+  template {
+    service_account = google_service_account.web_cloud_run.email
+    containers {
+      image = docker_registry_image.imagen_web_push.name
+      ports {
+        container_port = 80
+      }
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds = 5
+        period_seconds = 10
+        failure_threshold = 24
+        tcp_socket {
+          port = 80
+        }
+      }
+    }
+    vpc_access {
+      network_interfaces {
+        network = google_compute_network.vpc_monitoreo_menores.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.postgres_instance.connection_name]
+      }
+    }
+  }
+  depends_on = [docker_registry_image.imagen_web_push]
 }
