@@ -133,33 +133,36 @@ class GuardarEnFirestore(beam.DoFn):
     def process(self, element):
         id_menor = element['id_menor']
         estado = element['estado']
+        zona = element.get('zona_involucrada', 'Desconocida')
 
-        # ubicacion
-        doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
-        datos_ubicacion = {
-            "latitud": element['latitud'],
-            "longitud": element['longitud'],
-            "estado": estado,
-            "fecha": firestore.SERVER_TIMESTAMP 
-        }
-        doc_ref_ubic.set(datos_ubicacion, merge=True) #merge=true para que no borre datos anteriores como info del niño, solo actualiza la ubicacion y el estado.
-        logging.info(f"Ubicación actualizada: {id_menor}")
+        # --- COLECCIÓN 1: Ubicaciones en Tiempo Real ---
+        # Aquí guardamos solo la posición actual. 
+        doc_ubicacion = self.db.collection('ubicaciones_actualizadas').document(id_menor) # Si el niño se mueve, se borra la posición vieja y se pone la nueva.
+        doc_ubicacion.set({
+            'latitud': element['latitud'],
+            'longitud': element['longitud'],
+            'fecha': firestore.SERVER_TIMESTAMP,
+            'estado': estado
+        })
 
-        # notificaciones
-        if estado != "OK": 
-            destinatario = "PADRE" if estado == "PELIGRO" else "MENOR"
-            datos_alerta = {
-                "id_menor": id_menor,
-                "tipo": estado, # PELIGRO o ADVERTENCIA
-                "mensaje": f"El menor está en {element.get('zona_involucrada')}",
-                "destinatario": destinatario,
-                "fecha": firestore.SERVER_TIMESTAMP,
-                "leido": False
-            }
-            doc_ref_alerta = self.db.collection('notificaciones').add(datos_alerta)
+        # --- COLECCIÓN 2: Alertas para el NIÑO (Advertencia) ---
+        # Solo entramos aquí si el estado es ADVERTENCIA.
+        if estado == "ADVERTENCIA":
+            self.db.collection('alertas_niño').add({
+                'id_menor': id_menor,
+                'mensaje': f"¡Cuidado! Te estás acercando a la zona: {zona}",
+                'fecha': firestore.SERVER_TIMESTAMP
+            })
 
-            logging.info(f"Documento de notificación escrito en Firestore: {doc_ref_alerta[1].id}")
-        
+        # --- COLECCIÓN 3: Alertas para el PADRE (Peligro) ---
+        # Solo entramos aquí si el estado es PELIGRO.
+        elif estado == "PELIGRO":
+            self.db.collection('alertas_padre').add({
+                'id_menor': id_menor,
+                'mensaje': f"¡ALERTA! El menor ha entrado en la zona prohibida: {zona}",
+                'fecha': firestore.SERVER_TIMESTAMP
+            })
+
         yield element
 
 
