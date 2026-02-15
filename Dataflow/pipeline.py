@@ -237,6 +237,7 @@ def run():
                 | "LeerDeUbicacionPubSub" >> beam.io.ReadFromPubSub(subscription=f'projects/{args.project_id}/subscriptions/{args.ubicacion_pubsub_subscription_name}')
                 | "TransformarMensajePubSub">> beam.Map(TransformacionPubSub)
                 | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) #ver si es necesario o lo sacamos pq los mensajes vana a venir siempre con la info que queremos
+                | "VentanaDeTiempo" >> beam.WindowInto(beam.window.FixedWindows(60)) # Agrupamos los datos en bloques de 60 segundos (1 minuto)
                 | "CompararConZonasRestringidas" >> beam.ParDo(ZonasRestringidas(), beam.pvalue.AsList(zonas_restringidas))
                 
         )
