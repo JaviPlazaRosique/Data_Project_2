@@ -35,9 +35,11 @@ resource "google_project_iam_member" "dataflow_permissions" {
     "roles/dataflow.worker",     # Permiso base para que las máquinas procesen
     "roles/pubsub.subscriber",   # Leer los mensajes de ubicaciones
     "roles/bigquery.dataEditor", # Escribir en la tabla de histórico
+    "roles/bigquery.jobUser",    # Permiso para ejecutar trabajos de BigQuery
     "roles/datastore.user",      # Escribir en Firestore
     "roles/storage.objectAdmin", # Escribir archivos temporales en el Bucket
-    "roles/pubsub.publisher"
+    "roles/pubsub.publisher",    # Publicar mensajes de error en Pub/Sub
+    "roles/viewer"               # Permisos de solo lectura para acceder a recursos necesarios
   ])
 
   project = var.project_id
