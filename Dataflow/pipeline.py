@@ -194,9 +194,9 @@ def run():
                default='dataflow-marina:monitoreo_dataset.zona-restringida',
                 help='Tabla BigQuery con zonas restringidas.')
     parser.add_argument(
-                '--historico_ubicaciones_bigquery_table',
+                '--historico_ubicacion_bigquery_table',
                 required=False,
-                default='historico_ubicaciones',
+                default='historico_ubicacion',
                 help='Tabla BigQuery para historico de ubicaciones.')
 
     
@@ -254,7 +254,7 @@ def run():
                 | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
                         project=args.project_id,
                         dataset=args.bigquery_dataset,
-                        table=args.historico_ubicaciones_bigquery_table,
+                        table=args.historico_ubicacion_bigquery_table,
                         schema='id:STRING, fecha:TIMESTAMP, latitud:FLOAT, longitud:FLOAT, radio:FLOAT, direccion:INTEGER, duracion:INT64, id_menor:STRING, estado:STRING, zona_involucrada:STRING',                        
                         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
