@@ -152,8 +152,8 @@ resource "google_bigquery_table" "historico_ubicaciones" {
 [
   {"name": "id", "type": "STRING"},
   {"name": "fecha", "type": "TIMESTAMP"},
-  {"name": "latitud", "type": "STRING"},
-  {"name": "longitud", "type": "STRING"},
+  {"name": "latitud", "type": "FLOAT"},
+  {"name": "longitud", "type": "FLOAT"},
   {"name": "radio", "type": "STRING"},
   {"name": "direccion", "type": "INT64"},
   {"name": "duracion", "type": "STRING"},
