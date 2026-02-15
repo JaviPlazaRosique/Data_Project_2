@@ -203,7 +203,11 @@ def run():
     args, pipeline_opts = parser.parse_known_args()
 
     # Pipeline Options
-    options = PipelineOptions(pipeline_opts, save_main_session=True, streaming=True, project=args.project_id)
+    options = PipelineOptions(pipeline_opts, 
+                              save_main_session=True, 
+                              streaming=True, 
+                              project=args.project_id,
+                              service_account_email="dataflow-worker-sa@" + args.project_id + ".iam.gserviceaccount.com")
     pipeline_opts.append('--temp_location')
     pipeline_opts.append('gs://dataflow-jamagece/temp') #aca guarda BQ los datos de las zonas
 
