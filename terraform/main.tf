@@ -1,9 +1,9 @@
-terraform {
-  backend "gcs" {
-    bucket  = "tfstate_data_project_2_jamagece"
-    prefix  = "terraform/state" 
-  }
-}
+# terraform {
+#   backend "gcs" {
+#     bucket  = "tfstate_data_project_2_jamagece"
+#     prefix  = "terraform/state" 
+#   }
+# }
 
 resource "google_compute_network" "vpc_monitoreo_menores" {
   name = "vpc-monitoreo-menores"
@@ -393,11 +393,4 @@ resource "google_cloud_run_v2_service" "ws_server" {
   }
   
   depends_on = [docker_registry_image.imagen_ws_push]
-}
-
-resource "google_cloud_run_v2_service_iam_member" "public_access_ws" {
-  location = google_cloud_run_v2_service.ws_server.location
-  name     = google_cloud_run_v2_service.ws_server.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
 }
