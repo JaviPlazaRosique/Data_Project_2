@@ -1,5 +1,11 @@
+<<<<<<< HEAD
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Security, status
+from fastapi.security import APIKeyHeader
+from pydantic import BaseModel, Field
+=======
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
+>>>>>>> origin/main
 from datetime import date
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine, text
@@ -13,6 +19,11 @@ contr_db = os.getenv("CONTR_DB")
 nombre_bd = os.getenv("NOMBRE_BD")
 id_proyecto = os.getenv("ID_PROYECTO")
 topico_ubicaciones = os.getenv("TOPICO_UBICACIONES")
+<<<<<<< HEAD
+bucket_fotos = os.getenv("BUCKET_FOTOS")
+api_key_seguridad = os.getenv("API_KEY")
+=======
+>>>>>>> origin/main
 
 publisher = pubsub_v1.PublisherClient()
 topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
@@ -58,7 +69,39 @@ class ZonasRestringidas(BaseModel):
     radio_peligro: int
     radio_advertencia: int
 
-app = FastAPI()
+class HistoricoUbicaciones(BaseModel):
+    id: UUID = Field(default_factory = uuid4)
+    id_menor: UUID
+    nombre: str
+    latitud: float
+    longitud: float
+    radio: int
+    fecha: date
+    duracion: int
+    estado: str
+
+class Ubicaciones(BaseModel):
+    user_id: str
+    timestamp: str
+    latitude: float
+    longitude: float
+    node_id: int
+    street_name: str
+    road_type: str
+    poi_name: str
+    poi_type: str
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header == api_key_seguridad:
+        return api_key_header
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="No se pudo validar las credenciales"
+    )
+
+app = FastAPI(dependencies=[Depends(get_api_key)])
 
 def obtener_conexion():
     with engine.begin() as conexion:
@@ -78,6 +121,19 @@ async def crear_menor(menor: Menores, db = Depends(obtener_conexion)):
     
     except Exception as e:
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
+
+@app.get("/menores/id_direccion")
+async def obtener_ids_menores(db = Depends(obtener_conexion)):
+    try:
+        consulta = text("""SELECT id, direccion FROM menores""")
+
+        resultado = db.execute(consulta)
+
+        menores = [{"id": row[0], "direccion": row[1]} for row in resultado]
+
+        return {"menores": menores}
+    except Exception as e:
+        raise HTTPException(status_code = 500, detail = f"Error al obtener IDs: {str(e)}")
 
 @app.post("/adultos", status_code = 201)
 async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
@@ -109,7 +165,7 @@ async def crear_zona_restringida(zona: ZonasRestringidas, db = Depends(obtener_c
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
     
 @app.post("/ubicaciones", status_code = 201)
-async def crear_ubicaciones(ubicacion):
+async def crear_ubicaciones(ubicacion: Ubicaciones):
     try: 
         mensaje_bytes = json.dumps(ubicacion.model_dump()).encode("utf-8")
 
