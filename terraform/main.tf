@@ -333,6 +333,15 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
           port = 80
         }
       }
+      env {
+        name = "KEY_API_GOOGLE_MAPS"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.key_api_google_maps.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
     vpc_access {
       network_interfaces {
@@ -348,5 +357,30 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     }
   }
   depends_on = [docker_registry_image.imagen_web_push]
+}
+
+resource "google_apikeys_key" "maps_api_key" {
+  name = "clave-google-maps"
+  display_name = "Clave API de Google Maps"
+  restrictions {
+    browser_key_restrictions {
+      allowed_referrers = "hppts://*-ew.a.run.app/*"
+    }
+    api_targets {
+      service = "maps-backend.googleapis.com"
+    }
+  }
+}
+
+resource "google_secret_manager_secret" "key_api_google_maps" {
+  secret_id = "CLAVE_API_GOOGLE_MAPS"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "key_api_google_maps_version" {
+  secret = google_secret_manager_secret.key_api_google_maps.id
+  secret_data = google_apikeys_key.maps_api_key.key_string
 }
 

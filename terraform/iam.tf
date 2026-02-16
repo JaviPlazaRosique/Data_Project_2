@@ -33,6 +33,7 @@ resource "google_project_iam_member" "web_cloud_run_roles" {
         "roles/datastore.user",
         "roles/storage.objectUser",
         "roles/logging.logWriter",
+        "roles/secretmanager.secretAccessor"
         ])
     project = var.project_id
     role = each.key
