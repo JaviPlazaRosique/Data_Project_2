@@ -212,7 +212,7 @@ def run():
                               project=args.project_id,
                               service_account_email="dataflow-worker-sa@" + args.project_id + ".iam.gserviceaccount.com")
     pipeline_opts.append('--temp_location')
-    pipeline_opts.append('gs://dataflow-jamagece/temp') #aca guarda BQ los datos de las zonas
+    pipeline_opts.append('gs://dataflow-temp-' + args.project_id + '/temp') #aca guarda BQ los datos de las zonas
 
     # Pipeline Object
     with beam.Pipeline(argv=pipeline_opts,options=options) as p:
