@@ -46,3 +46,10 @@ resource "google_project_iam_member" "dataflow_permissions" {
   role    = each.key
   member  = "serviceAccount:${google_service_account.dataflow_sa.email}"
 }
+
+resource "google_cloud_run_v2_service_iam_member" "public_access_ws" {
+  location = google_cloud_run_v2_service.ws_server.location
+  name     = google_cloud_run_v2_service.ws_server.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
