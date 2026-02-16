@@ -134,9 +134,9 @@ resource "google_bigquery_table" "adultos" {
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "telefono", "type": "INT64"},
-  {"name": "email", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"}
+  {"name": "telefono", "type": "STRING"},
+  {"name": "id_menor", "type": "STRING"},
+  {"name": "email", "type": "STRING"}
 ]
 EOF
 }
@@ -150,14 +150,15 @@ resource "google_bigquery_table" "historico_ubicaciones" {
   }
   schema = <<EOF
 [
-  {"name": "id", "type": "STRING"},
-  {"name": "fecha", "type": "TIMESTAMP"},
+{"name": "id", "type": "STRING"},  
+  {"name": "id_menor", "type": "STRING"},
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
-  {"name": "radio", "type": "STRING"},
-  {"name": "direccion", "type": "INT64"},
-  {"name": "duracion", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"}
+  {"name": "radio", "type": "FLOAT"},
+  {"name": "fecha", "type": "TIMESTAMP"},
+  {"name": "duracion", "type": "INT64"},
+  {"name": "estado", "type": "STRING"},
+  {"name": "zona_involucrada", "type": "STRING"}
 ]
 EOF
 }
