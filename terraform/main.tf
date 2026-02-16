@@ -96,6 +96,11 @@ resource "random_password" "contraseña-monitoreo-menores" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
+resource "random_password" "api_key" {
+  length = 32
+  special = false
+}
+
 resource "google_sql_user" "postgres_user" {
   name = "admin"
   instance = google_sql_database_instance.postgres_instance.name
@@ -222,7 +227,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
     containers {
       image = docker_registry_image.imagen_api_push.name
       volume_mounts {
-        name       = "cloudsql"
+        name = "cloudsql"
         mount_path = "/cloudsql"
       }
       ports {
@@ -230,9 +235,9 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       startup_probe {
         initial_delay_seconds = 10
-        timeout_seconds       = 5
-        period_seconds        = 10
-        failure_threshold     = 24
+        timeout_seconds  = 5
+        period_seconds = 10
+        failure_threshold = 24
         tcp_socket {
           port = 8000
         }
@@ -265,10 +270,14 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
         name = "BUCKET_FOTOS"
         value = google_storage_bucket.bucket-menores.name
       }
+      env {
+        name = "API_KEY"
+        value = random_password.api_key.result
+      }
     }
     vpc_access {
       network_interfaces {
-        network    = google_compute_network.vpc_monitoreo_menores.id
+        network = google_compute_network.vpc_monitoreo_menores.id
       }
       egress = "PRIVATE_RANGES_ONLY"
     }
@@ -287,6 +296,7 @@ resource "local_file" "env_generadores" {
   content  = <<-EOT
     BUCKET_FOTOS = ${google_storage_bucket.bucket-menores.name}
     URL_API = ${google_cloud_run_v2_service.api_cloud_run.uri}
+    API_KEY = ${random_password.api_key.result}
   EOT
 }
 
