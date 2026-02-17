@@ -334,6 +334,18 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
           port = 8080
         }
       }
+      env {
+        name  = "STREAMLIT_SERVER_PORT"
+        value = "8080"
+      }
+      env {
+        name = "STREAMLIT_SERVER_HEADLESS"
+        value = "true"
+      }
+      env {
+        name = "STREAMLIT_SERVER_ENABLECORS"
+        value = "false"
+      }
     }
   }
   depends_on = [
