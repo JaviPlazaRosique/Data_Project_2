@@ -203,6 +203,7 @@ resource "google_artifact_registry_repository" "repo_artifact" {
 
 locals {
   api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
+  web_hash = sha1(join("", [for f in fileset("${path.module}/../web", "**") : filesha1("${path.module}/../web/${f}")]))
 }
 
 resource "docker_image" "imagen_api" {
@@ -301,7 +302,7 @@ resource "local_file" "env_generadores" {
 }
 
 resource "docker_image" "imagen_web" {
-  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/web:${local.api_hash}"
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/web:${local.web_hash}"
   build {
     context = "../web/"
     dockerfile = "Dockerfile"

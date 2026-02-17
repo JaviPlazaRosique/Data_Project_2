@@ -1,9 +1,11 @@
-FROM nginx:alpine
+FROM python:3.12-slim 
 
-COPY . /usr/share/nginx/html
+WORKDIR /app
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY . .
+
+RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["streamlit", "run", "web.py"]
