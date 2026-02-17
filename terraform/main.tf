@@ -322,7 +322,7 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     containers {
       image = docker_registry_image.imagen_web_push.name
       ports {
-        container_port = 80
+        container_port = 8080
       }
       startup_probe {
         initial_delay_seconds = 10
@@ -330,7 +330,7 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
         period_seconds = 10
         failure_threshold = 24
         tcp_socket {
-          port = 80
+          port = 8080
         }
       }
       env {
@@ -343,33 +343,27 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
         }
       }
     }
-    vpc_access {
-      network_interfaces {
-        network = google_compute_network.vpc_monitoreo_menores.id
-      }
-      egress = "PRIVATE_RANGES_ONLY"
-    }
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [google_sql_database_instance.postgres_instance.connection_name]
-      }
-    }
   }
-  depends_on = [docker_registry_image.imagen_web_push]
+  depends_on = [
+    docker_registry_image.imagen_web_push,
+    google_secret_manager_secret_version.key_api_google_maps_version,
+    google_project_iam_member.web_cloud_run_roles
+  ]
 }
 
 resource "google_apikeys_key" "maps_api_key" {
   name = "clave-google-maps"
+  project = var.project_id
   display_name = "Clave API de Google Maps"
   restrictions {
     browser_key_restrictions {
-      allowed_referrers = "hppts://*-ew.a.run.app/*"
+      allowed_referrers = ["https://*.run.app/*"]
     }
     api_targets {
       service = "maps-backend.googleapis.com"
     }
   }
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_secret_manager_secret" "key_api_google_maps" {
@@ -383,4 +377,3 @@ resource "google_secret_manager_secret_version" "key_api_google_maps_version" {
   secret = google_secret_manager_secret.key_api_google_maps.id
   secret_data = google_apikeys_key.maps_api_key.key_string
 }
-
