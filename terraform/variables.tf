@@ -24,9 +24,6 @@ variable "servicios_gcp" {
     "run.googleapis.com",
     "cloudfunctions.googleapis.com",
     "logging.googleapis.com", 
-    "servicenetworking.googleapis.com",
-    "maps-backend.googleapis.com",
-    "apikeys.googleapis.com",
-    "secretmanager.googleapis.com"
+    "servicenetworking.googleapis.com"
   ]
 }
