@@ -346,6 +346,22 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
         name = "STREAMLIT_SERVER_ENABLECORS"
         value = "false"
       }
+      env {
+        name = "PROYECTO_REGION_INSTANCIA"
+        value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
+      }
+      env {
+        name = "USUARIO_DB"
+        value = google_sql_user.postgres_user.name
+      }
+      env {
+        name = "CONTR_DB"
+        value = google_sql_user.postgres_user.password
+      }
+      env {
+        name = "NOMBRE_BD"
+        value = google_sql_database.menores_db.name
+      }
     }
   }
   depends_on = [
