@@ -56,10 +56,11 @@ def generar_adulto():
         "nombre": nombre,
         "apellidos": f"{apellido_paterno} {apellido_materno}",
         "telefono": fake.phone_number(),
-        "email": fake.email()
+        "email": fake.email(),
+        "ciudad": random.choice(ciudades)
     }
 
-def generar_menor(id_adulto, apellidos):
+def generar_menor(id_adulto, apellidos, ciudad):
     sexo = random.choice(['masculino', 'femenino'])
     id_menor = str(uuid.uuid4())
     
@@ -77,7 +78,7 @@ def generar_menor(id_adulto, apellidos):
         "apellidos": apellidos,
         "dni": fake.nif(),
         "fecha_nacimiento": fake.date_of_birth(minimum_age=10, maximum_age=17).strftime("%Y-%m-%d"),
-        "direccion": f"{random.choice(ciudades)}, Spain",
+        "direccion": f"{ciudad}, Spain",
         "url_foto": f"https://storage.googleapis.com/{bucket_fotos}/{id_menor}.png",
         "discapacidad": random.choice([True, False])
     }
@@ -108,7 +109,7 @@ if __name__ == "__main__":
     for _ in range(menores):
         tutor = random.choice(lista_adultos)
         
-        datos_menor, sexo_prompt = generar_menor(tutor["id"], tutor["apellidos"])
+        datos_menor, sexo_prompt = generar_menor(tutor["id"], tutor["apellidos"], tutor["ciudad"])
         
         foto_menor(datos_menor["id"], sexo_prompt)
         
