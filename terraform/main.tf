@@ -321,19 +321,6 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
   }
 }
 
-resource "docker_image" "imagen_api" {
-  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:${local.api_hash}"
-  build {
-    context = "../api/"
-    dockerfile = "Dockerfile"
-  }
-}
-
-resource "docker_registry_image" "imagen_api_push" {
-  name = docker_image.imagen_api.name
-  keep_remotely = true
-}
-
 resource "local_file" "env_generadores" {
   filename = "${path.module}/../Generadores/.env"
   content  = <<-EOT

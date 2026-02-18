@@ -14,6 +14,7 @@ variable "servicios_gcp" {
   default = [
     "iam.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "serviceusage.googleapis.com",
     "firestore.googleapis.com",
     "pubsub.googleapis.com",
     "compute.googleapis.com",
