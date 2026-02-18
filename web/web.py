@@ -40,6 +40,9 @@ if "logged_in" not in st.session_state:
 if "intentos" not in st.session_state:
     st.session_state.intentos = 3
 
+if "registering" not in st.session_state:
+    st.session_state.registering = False
+
 def verificar_credenciales(nombre, apellidos, telefono):
     with engine.connect() as conn:
         consulta = text("""
@@ -48,6 +51,18 @@ def verificar_credenciales(nombre, apellidos, telefono):
         """)
         resultado = conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "telefono": telefono}).fetchone()
         return resultado
+
+def registrar_adulto(nombre, apellidos, telefono, email):
+    try:
+        with engine.begin() as conn:
+            consulta = text("""
+                INSERT INTO adultos (nombre, apellidos, telefono, email)
+                VALUES (:nombre, :apellidos, :telefono, :email)
+            """)
+            conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "telefono": telefono, "email": email})
+        return True
+    except Exception as e:
+        return False
 
 def obtener_menores(id_adulto):
     with engine.connect() as conn:
@@ -65,30 +80,57 @@ if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.markdown("<h1 style='text-align: center;'>Inicio de Sesión</h1>", unsafe_allow_html=True)
-
-        if st.session_state.intentos > 0:
-            with st.form("login_form"):
+        if st.session_state.registering:
+            st.markdown("<h1 style='text-align: center;'>Registro de Nuevo Padre</h1>", unsafe_allow_html=True)
+            with st.form("register_form"):
                 nombre = st.text_input("Nombre")
                 apellidos = st.text_input("Apellidos")
-                telefono = st.text_input("Teléfono", type="password")
-                
-                c1, c2 = st.columns([3, 1])
-                with c2:
-                    submit = st.form_submit_button("Entrar")
+                telefono = st.text_input("Teléfono")
+                email = st.text_input("Email")
+                submit_registro = st.form_submit_button("Registrarse")
 
-                if submit:
-                    usuario = verificar_credenciales(nombre.strip(), apellidos.strip(), telefono.strip())
-                    if usuario:
-                        st.session_state.logged_in = True
-                        st.session_state.usuario = usuario
-                        st.success("Bienvenido!")
+                if submit_registro:
+                    if registrar_adulto(nombre, apellidos, telefono, email):
+                        st.success("Registro completado con éxito. Por favor, inicia sesión.")
+                        st.session_state.registering = False
                         st.rerun()
                     else:
-                        st.session_state.intentos -= 1
-                        st.error(f"Credenciales incorrectas. Intentos restantes: {st.session_state.intentos}")
+                        st.error("Error al registrar el usuario.")
+            
+            if st.button("Volver al Inicio de Sesión"):
+                st.session_state.registering = False
+                st.rerun()
+
         else:
-            st.error("Has superado el número de intentos permitidos.")
+            st.markdown("<h1 style='text-align: center;'>Inicio de Sesión</h1>", unsafe_allow_html=True)
+
+            if st.session_state.intentos > 0:
+                with st.form("login_form"):
+                    nombre = st.text_input("Nombre")
+                    apellidos = st.text_input("Apellidos")
+                    telefono = st.text_input("Teléfono", type="password")
+                    
+                    c1, c2 = st.columns([3, 1])
+                    with c2:
+                        submit = st.form_submit_button("Entrar")
+
+                    if submit:
+                        usuario = verificar_credenciales(nombre.strip(), apellidos.strip(), telefono.strip())
+                        if usuario:
+                            st.session_state.logged_in = True
+                            st.session_state.usuario = usuario
+                            st.success("Bienvenido!")
+                            st.rerun()
+                        else:
+                            st.session_state.intentos -= 1
+                            st.error(f"Credenciales incorrectas. Intentos restantes: {st.session_state.intentos}")
+                
+                st.markdown("---")
+                if st.button("¿No tienes cuenta? Regístrate aquí"):
+                    st.session_state.registering = True
+                    st.rerun()
+            else:
+                st.error("Has superado el número de intentos permitidos.")
 
 else:
     st.sidebar.write(f"Usuario: {st.session_state.usuario.nombre} {st.session_state.usuario.apellidos}")
