@@ -32,9 +32,17 @@ resource "google_project_iam_member" "web_cloud_run_roles" {
         "roles/cloudsql.client",
         "roles/datastore.user",
         "roles/storage.objectUser",
-        "roles/logging.logWriter"
+        "roles/logging.logWriter",
+        "roles/storage.objectViewer"
         ])
     project = var.project_id
     role = each.key
     member = "serviceAccount:${google_service_account.web_cloud_run.email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
+    location = google_cloud_run_v2_service.web_cloud_run.location
+    name = google_cloud_run_v2_service.web_cloud_run.name
+    role = "roles/run.invoker"
+    member = "allUsers"
 }

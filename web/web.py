@@ -29,56 +29,47 @@ engine = create_engine(
     creator = conexion_db
 )
 
-def consulatar_adultos():
-    """Realiza una consulta directa a la tabla adultos."""
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "intentos" not in st.session_state:
+    st.session_state.intentos = 3
+
+def verificar_credenciales(nombre, apellidos, telefono):
     with engine.connect() as conn:
-        query = text("SELECT * FROM adultos;")
-        return pd.read_sql(query, conn)
+        consulta = text("SELECT * FROM adultos")
+        resultados = conn.execute(consulta).fetchall()
+        for adulto in resultados:
+            if adulto.nombre == nombre and adulto.apellidos == apellidos and adulto.telefono == telefono:
+                return adulto
+        return None
 
+if not st.session_state.logged_in:
+    st.title("Inicio de Sesión")
 
-def consultar_menores():
-    """Realiza una consulta directa a la tabla menores."""
-    with engine.connect() as conn:
-        query = text("SELECT * FROM menores;")
-        return pd.read_sql(query, conn)
+    if st.session_state.intentos > 0:
+        with st.form("login_form"):
+            nombre = st.text_input("Nombre")
+            apellidos = st.text_input("Apellidos")
+            telefono = st.text_input("Teléfono")
+            submit = st.form_submit_button("Entrar")
 
+            if submit:
+                usuario = verificar_credenciales(nombre, apellidos, telefono)
+                if usuario:
+                    st.session_state.logged_in = True
+                    st.session_state.usuario = usuario
+                    st.success("Bienvenido!")
+                    st.rerun()
+                else:
+                    st.session_state.intentos -= 1
+                    st.error(f"Credenciales incorrectas. Intentos restantes: {st.session_state.intentos}")
+    else:
+        st.error("Has superado el número de intentos permitidos.")
 
-def main():
-    st.set_page_config(page_title="Mapa de Ubicaciones", layout="wide")
-    
-    st.title("Mapa de Ubicaciones")
-    st.subheader("Consulta Directa a Base de Datos")
-    if st.checkbox("Ver tabla de Menores"):
-        try:
-            df_menores = consultar_menores()
-            st.dataframe(df_menores)
-        except Exception as e:
-            st.error(f"Error al consultar la base de datos: {e}")
-    if st.checkbox("Ver tabla de Adultos"):
-        try:
-            df_adultos = consulatar_adultos()
-            st.dataframe(df_adultos)
-        except Exception as e: 
-            st.error(f"Error al consultar la base de datos: {e}")
-
-    data = {
-        'Ciudad': ['Madrid', 'Barcelona', 'Valencia'],
-        'Latitud': [40.4168, 41.3851, 39.4699],
-        'Longitud': [-3.7038, 2.1734, -0.3763]
-    }
-    
-    df = pd.DataFrame(data)
-    
-    m = folium.Map(location=[40.4637, -3.7492], zoom_start=6)
-    
-    for _, row in df.iterrows():
-        folium.Marker(
-            location=[row['Latitud'], row['Longitud']],
-            popup=row['Ciudad'],
-            tooltip=row['Ciudad']
-        ).add_to(m)
-    
-    st_folium(m, width=1000, height=600)
-
-if __name__ == "__main__":
-    main()
+else:
+    st.sidebar.write(f"Usuario: {st.session_state.usuario.nombre} {st.session_state.usuario.apellidos}")
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state.logged_in = False
+        st.session_state.intentos = 3
+        st.rerun()
