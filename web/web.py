@@ -62,89 +62,121 @@ def obtener_zonas_restringidas(id_menor):
         return resultados
 
 if not st.session_state.logged_in:
-    st.title("Inicio de Sesión")
+    col1, col2, col3 = st.columns([1, 2, 1])
 
-    if st.session_state.intentos > 0:
-        with st.form("login_form"):
-            nombre = st.text_input("Nombre")
-            apellidos = st.text_input("Apellidos")
-            telefono = st.text_input("Teléfono")
-            submit = st.form_submit_button("Entrar")
+    with col2:
+        st.markdown("<h1 style='text-align: center;'>Inicio de Sesión</h1>", unsafe_allow_html=True)
 
-            if submit:
-                usuario = verificar_credenciales(nombre.strip(), apellidos.strip(), telefono.strip())
-                if usuario:
-                    st.session_state.logged_in = True
-                    st.session_state.usuario = usuario
-                    st.success("Bienvenido!")
-                    st.rerun()
-                else:
-                    st.session_state.intentos -= 1
-                    st.error(f"Credenciales incorrectas. Intentos restantes: {st.session_state.intentos}")
-    else:
-        st.error("Has superado el número de intentos permitidos.")
+        if st.session_state.intentos > 0:
+            with st.form("login_form"):
+                nombre = st.text_input("Nombre")
+                apellidos = st.text_input("Apellidos")
+                telefono = st.text_input("Teléfono", type="password")
+                
+                c1, c2 = st.columns([3, 1])
+                with c2:
+                    submit = st.form_submit_button("Entrar")
+
+                if submit:
+                    usuario = verificar_credenciales(nombre.strip(), apellidos.strip(), telefono.strip())
+                    if usuario:
+                        st.session_state.logged_in = True
+                        st.session_state.usuario = usuario
+                        st.success("Bienvenido!")
+                        st.rerun()
+                    else:
+                        st.session_state.intentos -= 1
+                        st.error(f"Credenciales incorrectas. Intentos restantes: {st.session_state.intentos}")
+        else:
+            st.error("Has superado el número de intentos permitidos.")
 
 else:
     st.sidebar.write(f"Usuario: {st.session_state.usuario.nombre} {st.session_state.usuario.apellidos}")
     if st.sidebar.button("Cerrar Sesión"):
         st.session_state.logged_in = False
         st.session_state.intentos = 3
+        st.session_state.selected_child = None
         st.rerun()
+
+    if "selected_child" not in st.session_state:
+        st.session_state.selected_child = None
 
     menores = obtener_menores(st.session_state.usuario.id)
 
-    if menores:
-        nombres_pestanas = ["Resumen"] + [f"{m.nombre} {m.apellidos}" for m in menores]
-        tabs = st.tabs(nombres_pestanas)
-
-        with tabs[0]:
-            st.subheader("Mis Menores")
-            cols = st.columns(len(menores))
-            for idx, menor in enumerate(menores):
-                with cols[idx]:
-                    try:
-                        nombre_archivo = menor.url_foto.split("/")[-1]
-                        blob = bucket.blob(nombre_archivo)
-                        datos_imagen = blob.download_as_bytes()
-                        st.image(datos_imagen, caption=f"{menor.nombre} {menor.apellidos}", width=150)
-                    except Exception as e:
-                        st.error(f"Error cargando foto: {e}")
-
-        # Pestañas individuales por menor
-        for i, menor in enumerate(menores):
-            with tabs[i + 1]:
-                st.subheader(f"Mapa de {menor.nombre}")
-                zonas = obtener_zonas_restringidas(menor.id)
+    if not menores:
+        st.warning("Este usuario no tiene hijos.")
+    elif st.session_state.selected_child is None:
+        st.subheader("Mis Hijos")
+        cols = st.columns(3)
+        for idx, menor in enumerate(menores):
+            with cols[idx % 3]:
+                try:
+                    nombre_archivo = menor.url_foto.split("/")[-1]
+                    blob = bucket.blob(nombre_archivo)
+                    datos_imagen = blob.download_as_bytes()
+                    st.image(datos_imagen, use_column_width=True)
+                except Exception as e:
+                    st.error(f"Error cargando foto")
                 
-                lat, lon = 39.4699, -0.3763 
-                direccion_lower = str(menor.direccion).lower()
-                
-                if "madrid" in direccion_lower:
-                    lat, lon = 40.4168, -3.7038
-                elif "barcelona" in direccion_lower:
-                    lat, lon = 41.3851, 2.1734
-                
-                m = folium.Map(location=[lat, lon], zoom_start=12)
-                
-                for zona in zonas:
-                    folium.Circle(
-                        location=[zona.latitud, zona.longitud],
-                        radius=zona.radio_advertencia,
-                        color="yellow",
-                        fill=True,
-                        fill_opacity=0.2,
-                        popup=f"Advertencia: {zona.nombre}"
-                    ).add_to(m)
-                    
-                    folium.Circle(
-                        location=[zona.latitud, zona.longitud],
-                        radius=zona.radio_peligro,
-                        color="red",
-                        fill=True,
-                        fill_opacity=0.4,
-                        popup=f"Peligro: {zona.nombre}"
-                    ).add_to(m)
-                
-                st_folium(m, width=700, height=500, key=f"mapa_{menor.id}")
+                if st.button(f"{menor.nombre} {menor.apellidos}", key=f"btn_{menor.id}"):
+                    st.session_state.selected_child = menor
+                    st.rerun()
     else:
-        st.warning("No se encontraron menores asociados a este usuario.")
+        menor = st.session_state.selected_child
+        if st.button("← Volver"):
+            st.session_state.selected_child = None
+            st.rerun()
+
+        st.title(f"{menor.nombre} {menor.apellidos}")
+        
+        col_datos, col_mapa = st.columns([1, 2])
+        
+        with col_datos:
+            st.write(f"**DNI:** {menor.dni}")
+            st.write(f"**Fecha Nacimiento:** {menor.fecha_nacimiento}")
+            st.write(f"**Dirección:** {menor.direccion}")
+            if menor.discapacidad:
+                st.write("**Discapacidad:** Sí")
+            
+            try:
+                nombre_archivo = menor.url_foto.split("/")[-1]
+                blob = bucket.blob(nombre_archivo)
+                datos_imagen = blob.download_as_bytes()
+                st.image(datos_imagen, width=200)
+            except:
+                pass
+
+        with col_mapa:
+            st.subheader("Mapa")
+            zonas = obtener_zonas_restringidas(menor.id)
+            
+            lat, lon = 39.4699, -0.3763 
+            direccion_lower = str(menor.direccion).lower()
+            
+            if "madrid" in direccion_lower:
+                lat, lon = 40.4168, -3.7038
+            elif "barcelona" in direccion_lower:
+                lat, lon = 41.3851, 2.1734
+            
+            m = folium.Map(location=[lat, lon], zoom_start=12)
+            
+            for zona in zonas:
+                folium.Circle(
+                    location=[zona.latitud, zona.longitud],
+                    radius=zona.radio_advertencia,
+                    color="yellow",
+                    fill=True,
+                    fill_opacity=0.2,
+                    popup=f"Advertencia: {zona.nombre}"
+                ).add_to(m)
+                
+                folium.Circle(
+                    location=[zona.latitud, zona.longitud],
+                    radius=zona.radio_peligro,
+                    color="red",
+                    fill=True,
+                    fill_opacity=0.4,
+                    popup=f"Peligro: {zona.nombre}"
+                ).add_to(m)
+            
+            st_folium(m, width=700, height=500, key=f"mapa_{menor.id}")
