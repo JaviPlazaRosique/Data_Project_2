@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS adultos (
     apellidos VARCHAR(100),
     telefono VARCHAR(20), 
     email VARCHAR(100),
-    ciudad VARCHAR(100)
+    ciudad VARCHAR(100),
+    clave VARCHAR(20)
 );
 
 CREATE TABLE IF NOT EXISTS historico_ubicaciones (

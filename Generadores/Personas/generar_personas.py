@@ -57,7 +57,8 @@ def generar_adulto():
         "apellidos": f"{apellido_paterno} {apellido_materno}",
         "telefono": fake.phone_number(),
         "email": fake.email(),
-        "ciudad": random.choice(ciudades)
+        "ciudad": random.choice(ciudades),
+        "clave": fake.password(length = 10)
     }
 
 def generar_menor(id_adulto, apellidos, ciudad):

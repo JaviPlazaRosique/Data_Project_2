@@ -13,6 +13,9 @@ services:
     image: generador_ubicaciones:latest
     env_file:
       - .env
+    depends_on:
+      zonas_restringidas:
+        condition: service_completed_successfully
   zonas_restringidas:
     build: 
       context: ./ZonasRestringidas 
@@ -20,3 +23,6 @@ services:
     image: geneador_zonas_restringidas:latest
     env_file:
       - .env
+    depends_on:
+      personas:
+        condition: service_completed_successfully

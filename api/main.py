@@ -59,6 +59,7 @@ class Adultos(BaseModel):
     telefono: str
     email: str
     ciudad: str
+    clave: str
 
 class ZonasRestringidas(BaseModel):
     id: UUID = Field(default_factory = uuid4)
@@ -115,7 +116,8 @@ def crear_tablas():
                 apellidos VARCHAR(100),
                 telefono VARCHAR(20), 
                 email VARCHAR(100),
-                ciudad VARCHAR(100)
+                ciudad VARCHAR(100), 
+                clave VARCHAR(20)
             );
         """))
         conn.execute(text("""
@@ -214,8 +216,8 @@ async def obtener_ids_menores(db = Depends(obtener_conexion)):
 async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO adultos (id, nombre, apellidos, telefono, email, ciudad)
-            VALUES (:id, :nombre, :apellidos, :telefono, :email, :ciudad)
+            INSERT INTO adultos (id, nombre, apellidos, telefono, email, ciudad, clave)
+            VALUES (:id, :nombre, :apellidos, :telefono, :email, :ciudad, :clave)
         """)
 
         db.execute(consulta, adulto.model_dump())
