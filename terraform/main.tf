@@ -32,15 +32,15 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 resource "google_storage_bucket" "bucket-menores" {
-  name = "bucket-fotos-menores-${var.project_id}"
-  location = var.region
+  name          = "bucket-fotos-menores-${var.project_id}"
+  location      = var.region
   force_destroy = false
   storage_class = "STANDARD"
 }
 
 resource "google_storage_bucket" "dataflow-temp" {
-  name = "dataflow-temp-${var.project_id}" 
-  location = var.region
+  name          = "dataflow-temp-${var.project_id}"
+  location      = var.region
   force_destroy = false
   storage_class = "STANDARD"
 }
@@ -59,7 +59,7 @@ resource "google_pubsub_topic" "topic-eventos" {
 }
 
 resource "google_pubsub_subscription" "topic-eventos-sub" {
-  name = "${google_pubsub_topic.topic-eventos.name}-sub"
+  name  = "${google_pubsub_topic.topic-eventos.name}-sub"
   topic = google_pubsub_topic.topic-eventos.name
 }
 
@@ -75,12 +75,12 @@ resource "google_sql_database_instance" "postgres_instance" {
   deletion_protection = false
   settings {
     edition = "ENTERPRISE"
-    tier  = "db-f1-micro"
+    tier = "db-f1-micro"
     availability_type = "ZONAL"
-    disk_size  = 100
+    disk_size = 100
 
     ip_configuration {
-      ipv4_enabled = false
+      ipv4_enabled    = false
       private_network = google_compute_network.vpc_monitoreo_menores.id
     }
   }
@@ -113,9 +113,9 @@ resource "google_sql_database" "menores_db" {
 }
 
 resource "google_bigquery_dataset" "monitoreo_dataset" {
-  dataset_id  = "monitoreo_dataset"
+  dataset_id = "monitoreo_dataset"
   project = var.project_id
-  location  = var.region
+  location = var.region
 }
 
 resource "google_bigquery_table" "menores" {
@@ -125,74 +125,104 @@ resource "google_bigquery_table" "menores" {
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
+  {"name": "id_adulto", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "nombre_familia", "type": "STRING"},
-  {"name": "DNI", "type": "STRING"},
-  {"name": "id_adulto", "type": "STRING"},
-  {"name": "fecha_nacimiento", "type": "DATE"},
-  {"name": "domicilio", "type": "STRING"},
-  {"name": "grado_discapacidad", "type": "STRING"},
-  {"name": "url_foto", "type": "STRING"}
+  {"name": "dni", "type": "STRING"},
+  {"name": "fecha_nacimiento", "type": "STRING"},
+  {"name": "direccion", "type": "STRING"},
+  {"name": "url_foto", "type": "STRING"},
+  {"name": "discapacidad", "type": "BOOLEAN"}
+
 ]
 EOF
 }
 
 resource "google_bigquery_table" "adultos" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id = "adultos"
+  table_id   = "adultos"
 
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "telefono", "type": "INT64"},
+  {"name": "telefono", "type": "STRING"},
   {"name": "email", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"}
+  {"name": "ciudad", "type": "STRING"}
 ]
 EOF
 }
 
-resource "google_bigquery_table" "historico_ubicacion" {
+resource "google_bigquery_table" "historico_ubicaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id = "historico_ubicacion"
-
+  table_id   = "historico_ubicacion"
+  time_partitioning {
+    type  = "DAY"
+    field = "fecha"
+  }
   schema = <<EOF
 [
-  {"name": "id", "type": "STRING"},
-  {"name": "fecha", "type": "DATE"},
-  {"name": "latitud", "type": "STRING"},
-  {"name": "longitud", "type": "STRING"},
-  {"name": "radio", "type": "STRING"},
-  {"name": "direccion", "type": "INT64"},
-  {"name": "duracion", "type": "STRING"},
-  {"name": "id_niño", "type": "STRING"}
+  {"name": "id", "type": "STRING"},  
+  {"name": "id_menor", "type": "STRING"},
+  {"name": "latitud", "type": "FLOAT"},
+  {"name": "longitud", "type": "FLOAT"},
+  {"name": "radio", "type": "FLOAT"},
+  {"name": "fecha", "type": "TIMESTAMP"},
+  {"name": "duracion", "type": "INT64"},
+  {"name": "estado", "type": "STRING"},
+  {"name": "zona_involucrada", "type": "STRING"}
 ]
 EOF
 }
 
 resource "google_bigquery_table" "zona-restringida" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id = "zona-restringida"
+  table_id   = "zona-restringida"
 
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
-  {"name": "id_adulto", "type": "STRING"},
-  {"name": "latitud", "type": "STRING"},
-  {"name": "longitud", "type": "STRING"},  
-  {"name": "radio_advertencia", "type": "STRING"},
-  {"name": "radio_peligro", "type": "STRING"}
+  {"name": "id_menor", "type": "STRING"},
+  {"name": "nombre", "type": "STRING"},
+  {"name": "latitud", "type": "FLOAT"},
+  {"name": "longitud", "type": "FLOAT"},  
+  {"name": "radio_advertencia", "type": "FLOAT"},
+  {"name": "radio_peligro", "type": "FLOAT"}
+
 ]
 EOF
 }
 
 resource "google_firestore_database" "database" {
-  project = var.project_id
-  name = "(default)"
+  project     = var.project_id
+  name        = "(default)"
   location_id = var.region
-  type = "FIRESTORE_NATIVE"
+  type        = "FIRESTORE_NATIVE"
+}
+
+resource "google_firestore_document" "schema_ubicaciones" {
+  project     = var.project_id
+  database    = google_firestore_database.database.name
+  collection  = "ubicaciones"
+  document_id = "schema_info"
+
+  fields = jsonencode({
+    "descripcion" : { "stringValue" : "Ubicación en tiempo real. Un documento por niño." },
+    "ejemplo" : { "stringValue" : "id_menor: Javi, lat: 39.4, long: -0.3, ultima_act: TIMESTAMP" }
+  })
+}
+
+resource "google_firestore_document" "schema_notificaciones" {
+  project     = var.project_id
+  database    = google_firestore_database.database.name
+  collection  = "notificaciones"
+  document_id = "schema_info"
+
+  fields = jsonencode({
+    "descripcion" : { "stringValue" : "Log de alertas para Padres (Peligro) y Niños (Advertencia)" },
+    "estructura" : { "stringValue" : "id_menor, tipo (PELIGRO/ADVERTENCIA), mensaje, fecha, destinatario" }
+  })
 }
 
 resource "google_artifact_registry_repository" "repo_artifact" {
@@ -265,7 +295,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       env {
         name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.name
+        value = google_pubsub_topic.topic-ubicacion.id
       }
       env {
         name = "BUCKET_FOTOS"
@@ -289,7 +319,19 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
     }
   }
-  depends_on = [docker_registry_image.imagen_api_push]
+}
+
+resource "docker_image" "imagen_api" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:${local.api_hash}"
+  build {
+    context = "../api/"
+    dockerfile = "Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "imagen_api_push" {
+  name = docker_image.imagen_api.name
+  keep_remotely = true
 }
 
 resource "local_file" "env_generadores" {
@@ -335,7 +377,7 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
         }
       }
       env {
-        name  = "STREAMLIT_SERVER_PORT"
+        name = "STREAMLIT_SERVER_PORT"
         value = "8080"
       }
       env {

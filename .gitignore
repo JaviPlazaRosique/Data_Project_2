@@ -3,4 +3,5 @@ terraform.*
 .terraform.*
 *.tfstate
 .env
+.DS_Store
 __pycache__
