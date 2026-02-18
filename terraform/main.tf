@@ -5,6 +5,13 @@ terraform {
   }
 }
 
+resource "google_project_service" "activar_servicios_proyecto" {
+  for_each = toset(var.servicios_gcp)
+  project = var.project_id
+  service = each.value
+  disable_on_destroy = false
+}
+
 resource "google_compute_network" "vpc_monitoreo_menores" {
   name = "vpc-monitoreo-menores"
   project = var.project_id
@@ -196,6 +203,7 @@ resource "google_artifact_registry_repository" "repo_artifact" {
 
 locals {
   api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
+  web_hash = sha1(join("", [for f in fileset("${path.module}/../web", "**") : filesha1("${path.module}/../web/${f}")]))
 }
 
 resource "docker_image" "imagen_api" {
@@ -291,4 +299,82 @@ resource "local_file" "env_generadores" {
     URL_API = ${google_cloud_run_v2_service.api_cloud_run.uri}
     API_KEY = ${random_password.api_key.result}
   EOT
+}
+
+resource "docker_image" "imagen_web" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/web:${local.web_hash}"
+  build {
+    context = "../web/"
+    dockerfile = "Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "imagen_web_push" {
+  name = docker_image.imagen_web.name
+  keep_remotely = true
+}
+
+resource "google_cloud_run_v2_service" "web_cloud_run" {
+  name = "web-cloud-run"
+  location = var.region
+  deletion_protection = false
+  template {
+    service_account = google_service_account.web_cloud_run.email
+    containers {
+      image = docker_registry_image.imagen_web_push.name
+      ports {
+        container_port = 8080
+      }
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds = 5
+        period_seconds = 10
+        failure_threshold = 24
+        tcp_socket {
+          port = 8080
+        }
+      }
+      env {
+        name  = "STREAMLIT_SERVER_PORT"
+        value = "8080"
+      }
+      env {
+        name = "STREAMLIT_SERVER_HEADLESS"
+        value = "true"
+      }
+      env {
+        name = "STREAMLIT_SERVER_ENABLECORS"
+        value = "false"
+      }
+      env {
+        name = "PROYECTO_REGION_INSTANCIA"
+        value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
+      }
+      env {
+        name = "USUARIO_DB"
+        value = google_sql_user.postgres_user.name
+      }
+      env {
+        name = "CONTR_DB"
+        value = google_sql_user.postgres_user.password
+      }
+      env {
+        name = "NOMBRE_BD"
+        value = google_sql_database.menores_db.name
+      }
+      env {
+        name = "BUCKET_FOTOS"
+        value = google_storage_bucket.bucket-menores.name
+      }
+    }
+    vpc_access {
+      network_interfaces {
+        network = google_compute_network.vpc_monitoreo_menores.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+  }
+  depends_on = [
+    docker_registry_image.imagen_web_push
+  ]
 }
