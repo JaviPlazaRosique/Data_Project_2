@@ -56,7 +56,8 @@ def generar_adulto():
         "nombre": nombre,
         "apellidos": f"{apellido_paterno} {apellido_materno}",
         "telefono": fake.phone_number(),
-        "email": fake.email()
+        "email": fake.email(),
+        "sexo": sexo
     }
 
 def generar_menor(id_adulto, apellidos):
@@ -92,7 +93,9 @@ if __name__ == "__main__":
     for _ in range(adultos):
         adulto = generar_adulto()
         try:
-            res = requests.post(f"{url_api}/adultos", json=adulto, headers={"X-API-Key": api_key})
+            adulto_api = adulto.copy()
+            del adulto_api["sexo"]
+            res = requests.post(f"{url_api}/adultos", json=adulto_api, headers={"X-API-Key": api_key})
             if res.status_code == 201:
                 lista_adultos.append(adulto)
                 print(f"Adulto registrado: {adulto['nombre']} {adulto['apellidos']}")
@@ -108,7 +111,15 @@ if __name__ == "__main__":
     for _ in range(menores):
         tutor = random.choice(lista_adultos)
         
-        datos_menor, sexo_prompt = generar_menor(tutor["id"], tutor["apellidos"])
+        apellido_tutor = tutor["apellidos"].split()[0]
+        otro_apellido = fake.last_name()
+
+        if tutor["sexo"] == "m":
+            apellidos_menor = f"{apellido_tutor} {otro_apellido}"
+        else:
+            apellidos_menor = f"{otro_apellido} {apellido_tutor}"
+        
+        datos_menor, sexo_prompt = generar_menor(tutor["id"], apellidos_menor)
         
         foto_menor(datos_menor["id"], sexo_prompt)
         
