@@ -89,6 +89,11 @@ resource "random_password" "contraseña-monitoreo-menores" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
+resource "random_password" "api_key" {
+  length = 32
+  special = false
+}
+
 resource "google_sql_user" "postgres_user" {
   name     = "admin"
   instance = google_sql_database_instance.postgres_instance.name
@@ -226,67 +231,9 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
   template {
     service_account = google_service_account.api_cloud_run.email
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:latest"
-      env {
-        name = "PROYECTO_REGION_INSTANCIA"
-        value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
-      }
-      env {
-        name = "USUARIO_DB"
-        value = google_sql_user.postgres_user.name
-      }
-      env {
-        name = "CONTR_DB"
-        value = google_sql_user.postgres_user.password
-      }
-      env {
-        name = "NOMBRE_BD"
-        value = google_sql_database.menores_db.name
-      }
-      env {
-        name = "ID_PROYECTO"
-        value = var.project_id
-      }
-      env {
-        name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.id
-      }
-    }
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [google_sql_database_instance.postgres_instance.connection_name]
-      }
-    }
-  }
-}
-locals {
-  api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
-}
-
-resource "docker_image" "imagen_api" {
-  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:${local.api_hash}"
-  build {
-    context = "../api/"
-    dockerfile = "Dockerfile"
-  }
-}
-
-resource "docker_registry_image" "imagen_api_push" {
-  name = docker_image.imagen_api.name
-  keep_remotely = true
-}
-
-resource "google_cloud_run_v2_service" "api_cloud_run" {
-  name = "api-cloud-run"
-  location = var.region
-  deletion_protection = false
-  template {
-    service_account = google_service_account.api_cloud_run.email
-    containers {
       image = docker_registry_image.imagen_api_push.name
       volume_mounts {
-        name       = "cloudsql"
+        name = "cloudsql"
         mount_path = "/cloudsql"
       }
       ports {
@@ -294,9 +241,9 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       startup_probe {
         initial_delay_seconds = 10
-        timeout_seconds       = 5
-        period_seconds        = 10
-        failure_threshold     = 24
+        timeout_seconds  = 5
+        period_seconds = 10
+        failure_threshold = 24
         tcp_socket {
           port = 8000
         }
@@ -323,16 +270,20 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       env {
         name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.name
+        value = google_pubsub_topic.topic-ubicacion.id
       }
       env {
         name = "BUCKET_FOTOS"
         value = google_storage_bucket.bucket-menores.name
       }
+      env {
+        name = "API_KEY"
+        value = random_password.api_key.result
+      }
     }
     vpc_access {
       network_interfaces {
-        network    = google_compute_network.vpc_monitoreo_menores.id
+        network = google_compute_network.vpc_monitoreo_menores.id
       }
       egress = "PRIVATE_RANGES_ONLY"
     }
@@ -343,7 +294,22 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
     }
   }
-  depends_on = [docker_registry_image.imagen_api_push]
+}
+locals {
+  api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
+}
+
+resource "docker_image" "imagen_api" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:${local.api_hash}"
+  build {
+    context = "../api/"
+    dockerfile = "Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "imagen_api_push" {
+  name = docker_image.imagen_api.name
+  keep_remotely = true
 }
 
 resource "local_file" "env_generadores" {
@@ -351,47 +317,6 @@ resource "local_file" "env_generadores" {
   content  = <<-EOT
     BUCKET_FOTOS = ${google_storage_bucket.bucket-menores.name}
     URL_API = ${google_cloud_run_v2_service.api_cloud_run.uri}
+    API_KEY = ${random_password.api_key.result}
   EOT
-}
-
-locals {
-  ws_hash = sha1(join("", [for f in fileset("${path.module}/ws-server", "**") : filesha1("${path.module}/ws-server/${f}")]))
-}
-
-resource "docker_image" "imagen_ws" {
-  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/ws-server:${local.ws_hash}"
-  build {
-    context    = "./ws-server/"
-    dockerfile = "Dockerfile"
-  }
-}
-
-resource "docker_registry_image" "imagen_ws_push" {
-  name          = docker_image.imagen_ws.name
-  keep_remotely = true
-}
-
-resource "google_cloud_run_v2_service" "ws_server" {
-  name                = "ws-server"
-  location            = var.region
-  deletion_protection = false
-
-  template {
-    service_account = google_service_account.api_cloud_run.email
-    
-    containers {
-      image = docker_registry_image.imagen_ws_push.name 
-      
-      ports {
-        container_port = 8080
-      }
-
-      env {
-        name  = "ID_PROYECTO"
-        value = var.project_id
-      }
-    }
-  }
-  
-  depends_on = [docker_registry_image.imagen_ws_push]
 }
