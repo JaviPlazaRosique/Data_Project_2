@@ -15,12 +15,12 @@ resource "google_project_iam_member" "api_cloud_run_roles" {
   member  = "serviceAccount:${google_service_account.api_cloud_run.email}"
 }
 
-resource "google_cloud_run_v2_service_iam_member" "uso_api_cloud_run" {
-  location = google_cloud_run_v2_service.api_cloud_run.location
-  name     = google_cloud_run_v2_service.api_cloud_run.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
+# resource "google_cloud_run_v2_service_iam_member" "uso_api_cloud_run" {
+#   location = google_cloud_run_v2_service.api_cloud_run.location
+#   name     = google_cloud_run_v2_service.api_cloud_run.name
+#   role     = "roles/run.invoker"
+#   member   = "allUsers"
+# }
 
 
 # SERVICE ACCOUNT DE DATAFLOW 

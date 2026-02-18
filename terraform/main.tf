@@ -113,6 +113,7 @@ resource "google_bigquery_table" "menores" {
   schema = <<EOF
 [
   {"name": "id", "type": "STRING"},
+  {"name": "id_adulto", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
   {"name": "dni", "type": "STRING"},
@@ -135,8 +136,8 @@ resource "google_bigquery_table" "adultos" {
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
   {"name": "telefono", "type": "STRING"},
-  {"name": "id_menor", "type": "STRING"},
-  {"name": "email", "type": "STRING"}
+  {"name": "email", "type": "STRING"},
+  {"name": "ciudad", "type": "STRING"},
 ]
 EOF
 }
