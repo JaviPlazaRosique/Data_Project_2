@@ -106,19 +106,19 @@ else:
     if not menores:
         st.warning("Este usuario no tiene hijos.")
     elif st.session_state.selected_child is None:
-        st.subheader("Mis Hijos")
-        cols = st.columns(3)
+        st.markdown("<h2 style='text-align: center;'>Mis Hijos</h2>", unsafe_allow_html=True)
+        cols = st.columns(2)
         for idx, menor in enumerate(menores):
-            with cols[idx % 3]:
+            with cols[idx % 2]:
                 try:
                     nombre_archivo = menor.url_foto.split("/")[-1]
                     blob = bucket.blob(nombre_archivo)
                     datos_imagen = blob.download_as_bytes()
-                    st.image(datos_imagen, use_column_width=True)
+                    st.image(datos_imagen, use_container_width=True)
                 except Exception as e:
                     st.error(f"Error cargando foto")
                 
-                if st.button(f"{menor.nombre} {menor.apellidos}", key=f"btn_{menor.id}"):
+                if st.button(menor.nombre, key=f"btn_{menor.id}", use_container_width=True):
                     st.session_state.selected_child = menor
                     st.rerun()
     else:
@@ -127,56 +127,71 @@ else:
             st.session_state.selected_child = None
             st.rerun()
 
-        st.title(f"{menor.nombre} {menor.apellidos}")
+        st.title(menor.nombre)
         
-        col_datos, col_mapa = st.columns([1, 2])
+        col_foto, col_datos = st.columns([1, 3])
         
+        with col_foto:
+            try:
+                nombre_archivo = menor.url_foto.split("/")[-1]
+                blob = bucket.blob(nombre_archivo)
+                datos_imagen = blob.download_as_bytes()
+                st.image(datos_imagen, use_container_width=True)
+            except:
+                pass
+
         with col_datos:
             st.write(f"**DNI:** {menor.dni}")
             st.write(f"**Fecha Nacimiento:** {menor.fecha_nacimiento}")
             st.write(f"**Dirección:** {menor.direccion}")
             if menor.discapacidad:
                 st.write("**Discapacidad:** Sí")
-            
-            try:
-                nombre_archivo = menor.url_foto.split("/")[-1]
-                blob = bucket.blob(nombre_archivo)
-                datos_imagen = blob.download_as_bytes()
-                st.image(datos_imagen, width=200)
-            except:
-                pass
 
-        with col_mapa:
-            st.subheader("Mapa")
-            zonas = obtener_zonas_restringidas(menor.id)
+        st.subheader("Mapa")
+        zonas = obtener_zonas_restringidas(menor.id)
+        
+        lat, lon = 39.4699, -0.3763 
+        direccion_lower = str(menor.direccion).lower()
+        
+        if "madrid" in direccion_lower:
+            lat, lon = 40.4168, -3.7038
+        elif "barcelona" in direccion_lower:
+            lat, lon = 41.3851, 2.1734
+        
+        m = folium.Map(location=[lat, lon], zoom_start=12, tiles=None)
+        
+        folium.TileLayer("OpenStreetMap", name="Callejero").add_to(m)
+        
+        folium.TileLayer(
+            tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            attr='Esri',
+            name='Satélite'
+        ).add_to(m)
+
+        folium.TileLayer(
+            tiles='cartodbdark_matter',
+            name='Modo Oscuro'
+        ).add_to(m)
+
+        folium.LayerControl().add_to(m)
+
+        for zona in zonas:
+            folium.Circle(
+                location=[zona.latitud, zona.longitud],
+                radius=zona.radio_advertencia,
+                color="yellow",
+                fill=True,
+                fill_opacity=0.2,
+                popup=f"Advertencia: {zona.nombre}"
+            ).add_to(m)
             
-            lat, lon = 39.4699, -0.3763 
-            direccion_lower = str(menor.direccion).lower()
-            
-            if "madrid" in direccion_lower:
-                lat, lon = 40.4168, -3.7038
-            elif "barcelona" in direccion_lower:
-                lat, lon = 41.3851, 2.1734
-            
-            m = folium.Map(location=[lat, lon], zoom_start=12)
-            
-            for zona in zonas:
-                folium.Circle(
-                    location=[zona.latitud, zona.longitud],
-                    radius=zona.radio_advertencia,
-                    color="yellow",
-                    fill=True,
-                    fill_opacity=0.2,
-                    popup=f"Advertencia: {zona.nombre}"
-                ).add_to(m)
-                
-                folium.Circle(
-                    location=[zona.latitud, zona.longitud],
-                    radius=zona.radio_peligro,
-                    color="red",
-                    fill=True,
-                    fill_opacity=0.4,
-                    popup=f"Peligro: {zona.nombre}"
-                ).add_to(m)
-            
-            st_folium(m, width=700, height=500, key=f"mapa_{menor.id}")
+            folium.Circle(
+                location=[zona.latitud, zona.longitud],
+                radius=zona.radio_peligro,
+                color="red",
+                fill=True,
+                fill_opacity=0.4,
+                popup=f"Peligro: {zona.nombre}"
+            ).add_to(m)
+        
+        st_folium(m, use_container_width=True, height=500, key=f"mapa_{menor.id}")
