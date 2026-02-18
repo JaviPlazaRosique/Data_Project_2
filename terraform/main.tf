@@ -362,6 +362,16 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
         name = "NOMBRE_BD"
         value = google_sql_database.menores_db.name
       }
+      env {
+        name = "BUCKET_FOTOS"
+        value = google_storage_bucket.bucket-menores.name
+      }
+    }
+    vpc_access {
+      network_interfaces {
+        network = google_compute_network.vpc_monitoreo_menores.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
     }
   }
   depends_on = [
