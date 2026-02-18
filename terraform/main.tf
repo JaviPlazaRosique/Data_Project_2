@@ -137,7 +137,7 @@ resource "google_bigquery_table" "adultos" {
   {"name": "apellidos", "type": "STRING"},
   {"name": "telefono", "type": "STRING"},
   {"name": "email", "type": "STRING"},
-  {"name": "ciudad", "type": "STRING"},
+  {"name": "ciudad", "type": "STRING"}
 ]
 EOF
 }
