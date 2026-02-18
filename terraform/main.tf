@@ -89,6 +89,11 @@ resource "random_password" "contraseña-monitoreo-menores" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
+resource "random_password" "api_key" {
+  length = 32
+  special = false
+}
+
 resource "google_sql_user" "postgres_user" {
   name     = "admin"
   instance = google_sql_database_instance.postgres_instance.name
@@ -224,7 +229,23 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
   template {
     service_account = google_service_account.api_cloud_run.email
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/api:latest"
+      image = docker_registry_image.imagen_api_push.name
+      volume_mounts {
+        name = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+      ports {
+        container_port = 8000
+      }
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds  = 5
+        period_seconds = 10
+        failure_threshold = 24
+        tcp_socket {
+          port = 8000
+        }
+      }
       env {
         name = "PROYECTO_REGION_INSTANCIA"
         value = "${var.project_id}:${var.region}:${google_sql_database_instance.postgres_instance.name}"
@@ -249,6 +270,20 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
         name = "TOPICO_UBICACIONES"
         value = google_pubsub_topic.topic-ubicacion.id
       }
+      env {
+        name = "BUCKET_FOTOS"
+        value = google_storage_bucket.bucket-menores.name
+      }
+      env {
+        name = "API_KEY"
+        value = random_password.api_key.result
+      }
+    }
+    vpc_access {
+      network_interfaces {
+        network = google_compute_network.vpc_monitoreo_menores.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
     }
     volumes {
       name = "cloudsql"
@@ -280,5 +315,6 @@ resource "local_file" "env_generadores" {
   content  = <<-EOT
     BUCKET_FOTOS = ${google_storage_bucket.bucket-menores.name}
     URL_API = ${google_cloud_run_v2_service.api_cloud_run.uri}
+    API_KEY = ${random_password.api_key.result}
   EOT
 }

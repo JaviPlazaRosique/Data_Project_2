@@ -1,0 +1,22 @@
+services:
+  personas:
+    build: 
+      context: ./Personas 
+      dockerfile: Dockerfile
+    image: generador_personas:latest
+    env_file:
+      - .env
+  ubicaciones:
+    build: 
+      context: ./Ubicaciones 
+      dockerfile: Dockerfile
+    image: generador_ubicaciones:latest
+    env_file:
+      - .env
+  zonas_restringidas:
+    build: 
+      context: ./ZonasRestringidas 
+      dockerfile: Dockerfile
+    image: geneador_zonas_restringidas:latest
+    env_file:
+      - .env
