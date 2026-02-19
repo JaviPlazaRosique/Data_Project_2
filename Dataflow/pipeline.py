@@ -47,7 +47,8 @@ class ZonasRestringidas(beam.DoFn):
             lat_menor=float(element.get('latitud'))
             long_menor=float(element.get('longitud'))
 
-        except:
+        except Exception as e:
+            logging.error(f"❌ ERROR procesando coordenadas: {e} | Dato recibido: {element}")
             return
         
         estado = "OK" 
@@ -133,38 +134,43 @@ class GuardarEnFirestore(beam.DoFn):
     def process(self, element):
         id_menor = element['id_menor']
         estado = element['estado']
-        zona = element.get('zona_involucrada', 'Desconocida')
 
-        # --- COLECCIÓN 1: Ubicaciones en Tiempo Real ---
-        # Aquí guardamos solo la posición actual. 
-        doc_ubicacion = self.db.collection('ubicaciones_actualizadas').document(id_menor) # Si el niño se mueve, se borra la posición vieja y se pone la nueva.
-        doc_ubicacion.set({
-            'latitud': element['latitud'],
-            'longitud': element['longitud'],
-            'fecha': firestore.SERVER_TIMESTAMP,
-            'estado': estado
-        })
+        # ubicacion
+        doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
+        datos_ubicacion = {
+            "latitud": element['latitud'],
+            "longitud": element['longitud'],
+            "estado": estado,
+            "fecha": firestore.SERVER_TIMESTAMP 
+        }
+        doc_ref_ubic.set(datos_ubicacion, merge=True) #merge=true para que no borre datos anteriores como info del niño, solo actualiza la ubicacion y el estado.
+        logging.info(f"Ubicación actualizada: {id_menor}")
 
-        # --- COLECCIÓN 2: Alertas para el NIÑO (Advertencia) ---
-        # Solo entramos aquí si el estado es ADVERTENCIA.
-        if estado == "ADVERTENCIA":
-            self.db.collection('alertas_niño').add({
-                'id_menor': id_menor,
-                'mensaje': f"¡Cuidado! Te estás acercando a la zona: {zona}",
-                'fecha': firestore.SERVER_TIMESTAMP
-            })
+        # notificaciones
 
-        # --- COLECCIÓN 3: Alertas para el PADRE (Peligro) ---
-        # Solo entramos aquí si el estado es PELIGRO.
-        elif estado == "PELIGRO":
-            self.db.collection('alertas_padre').add({
-                'id_menor': id_menor,
-                'mensaje': f"¡ALERTA! El menor ha entrado en la zona prohibida: {zona}",
-                'fecha': firestore.SERVER_TIMESTAMP
-            })
+        if estado != "OK": 
+            
+            zona = element.get('zona_involucrada', 'zona desconocida')
+
+            if estado == "PELIGRO":
+                    destinatario = "PADRE"
+                    mensaje = f"¡Alerta! {id_menor} ha entrado en la zona prohibida: {zona}."
+            else: # ADVERTENCIA
+                    destinatario = "MENOR"
+                    mensaje = f"Ten cuidado, estás acercándote a la zona: {zona}."
+            datos_alerta = {
+                "id_menor": id_menor,
+                "asunto": f"¡ALERTA DE {estado}!", # PELIGRO o ADVERTENCIA
+                "cuerpo": mensaje,
+                "destinatario": destinatario,
+                "fecha": firestore.SERVER_TIMESTAMP,
+                "leido": False
+            }
+            doc_ref_alerta = self.db.collection('notificaciones').add(datos_alerta)
+
+            logging.info(f"Documento de notificación escrito en Firestore: {doc_ref_alerta[1].id}")
 
         yield element
-
 
 
 
@@ -206,14 +212,14 @@ def run():
     args, pipeline_opts = parser.parse_known_args()
 
     # Pipeline Options
+    
+    pipeline_opts.append('--temp_location')
+    pipeline_opts.append('gs://dataflow-temp-' + args.project_id + '/temp') #aca guarda BQ los datos de las zonas
     options = PipelineOptions(pipeline_opts, 
                               save_main_session=True, 
                               streaming=True, 
                               project=args.project_id,
                               service_account_email="dataflow-worker-sa@" + args.project_id + ".iam.gserviceaccount.com")
-    pipeline_opts.append('--temp_location')
-    pipeline_opts.append('gs://dataflow-temp-' + args.project_id + '/temp') #aca guarda BQ los datos de las zonas
-
     # Pipeline Object
     with beam.Pipeline(argv=pipeline_opts,options=options) as p:
         #
