@@ -248,7 +248,7 @@ async def crear_ubicaciones(ubicacion: Ubicaciones):
 
         future = publisher.publish(topic_path, mensaje_bytes)
 
-        mensaje_id = future.results()
+        mensaje_id = future.result()
 
         return {"mensaje": f"Ubicacion creada: {mensaje_id}"}
     except Exception as e:
