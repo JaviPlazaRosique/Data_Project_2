@@ -168,7 +168,7 @@ resource "google_bigquery_table" "historico_notificaciones" {
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
   {"name": "fecha", "type": "TIMESTAMP"},
-  {"name": "estado", "type": "STRING"},
+  {"name": "estado", "type": "STRING"}
 ]
 EOF
 }
@@ -186,7 +186,6 @@ resource "google_bigquery_table" "zona-restringida" {
   {"name": "longitud", "type": "FLOAT"},  
   {"name": "radio_advertencia", "type": "FLOAT"},
   {"name": "radio_peligro", "type": "FLOAT"}
-
 ]
 EOF
 }
