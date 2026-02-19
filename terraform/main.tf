@@ -154,9 +154,9 @@ resource "google_bigquery_table" "adultos" {
 EOF
 }
 
-resource "google_bigquery_table" "historico_ubicaciones" {
+resource "google_bigquery_table" "historico_notificaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "historico_ubicacion"
+  table_id   = "historico_notificaciones"
   time_partitioning {
     type  = "DAY"
     field = "fecha"
@@ -167,11 +167,8 @@ resource "google_bigquery_table" "historico_ubicaciones" {
   {"name": "id_menor", "type": "STRING"},
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
-  {"name": "radio", "type": "FLOAT"},
   {"name": "fecha", "type": "TIMESTAMP"},
-  {"name": "duracion", "type": "INT64"},
   {"name": "estado", "type": "STRING"},
-  {"name": "zona_involucrada", "type": "STRING"}
 ]
 EOF
 }

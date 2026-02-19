@@ -70,15 +70,13 @@ class ZonasRestringidas(BaseModel):
     radio_peligro: int
     radio_advertencia: int
 
-class HistoricoUbicaciones(BaseModel):
+class HistoricoNotificaciones(BaseModel):
     id: UUID = Field(default_factory = uuid4)
     id_menor: UUID
     nombre: str
     latitud: float
     longitud: float
-    radio: int
     fecha: date
-    duracion: int
     estado: str
 
 class Ubicaciones(BaseModel):
@@ -145,14 +143,12 @@ def crear_tablas():
             );
         """))
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS historico_ubicaciones (
+            CREATE TABLE IF NOT EXISTS historico_notificaciones (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 id_menor UUID REFERENCES menores(id),
                 latitud DOUBLE PRECISION NOT NULL,
                 longitud DOUBLE PRECISION NOT NULL,
-                radio INTEGER,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                duracion INTEGER,
                 estado VARCHAR(20)
             );
         """))
@@ -254,16 +250,16 @@ async def crear_ubicaciones(ubicacion: Ubicaciones):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al publicar en Pub/Sub: {str(e)}")
     
-@app.post("/historico_ubicaciones", status_code = 201)
-async def crear_historico_ubicacion(ubicacion: HistoricoUbicaciones, db = Depends(obtener_conexion)):
+@app.post("/historico_notificaciones", status_code = 201)
+async def crear_historico_notificaciones(ubicacion: HistoricoNotificaciones, db = Depends(obtener_conexion)):
     try: 
         consulta = text("""
-            INSERT INTO historico_ubicaciones (id, id_menor, latitud, longitud, radio, fecha, duracion, estado)
-            VALUES (:id, :id_menor, :latitud, :longitud, :radio, :fecha, :duracion, :estado)
+            INSERT INTO historico_notificaciones (id, id_menor, latitud, longitud, fecha, estado)
+            VALUES (:id, :id_menor, :latitud, :longitud, :fecha, :estado)
         """)
 
         db.execute(consulta, ubicacion.model_dump())
 
-        return {"mensaje": "Historico de ubicación creado exitosamente"}
+        return {"mensaje": "Historico de notificaciones creado exitosamente"}
     except Exception as e: 
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")

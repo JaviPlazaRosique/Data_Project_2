@@ -22,16 +22,13 @@ CREATE TABLE IF NOT EXISTS adultos (
     clave VARCHAR(20)
 );
 
-CREATE TABLE IF NOT EXISTS historico_ubicaciones (
+CREATE TABLE IF NOT EXISTS historico_notificaciones (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_menor UUID REFERENCES menores(id),
     latitud DOUBLE PRECISION NOT NULL,
     longitud DOUBLE PRECISION NOT NULL,
-    radio INTEGER,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    duracion INTEGER,
     estado VARCHAR(20)
-    zona_involucrada VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS zonas_restringidas (
