@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS historico_ubicaciones (
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     duracion INTEGER,
     estado VARCHAR(20)
+    zona_involucrada VARCHAR(100)
 );
 
 CREATE TABLE IF NOT EXISTS zonas_restringidas (
