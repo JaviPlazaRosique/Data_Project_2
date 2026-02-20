@@ -9,10 +9,6 @@ se le enviará una notificación al padre.
 # A. Librerias Apache Beam 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms.window import Sessions, SlidingWindows
-from apache_beam.io.filesystems import FileSystems
-from apache_beam.utils.timestamp import Timestamp
-
 
 # B. Librerias Python 
 import argparse
