@@ -207,7 +207,7 @@ class GuardarEnFirestore(beam.DoFn):
                     mensaje = f"¡Alerta! {id_menor} ha entrado en una zona prohibida."
             else: # ADVERTENCIA
                     destinatario = "MENOR"
-                    mensaje = f"Ten cuidado, está acercándote a una zona restringida."
+                    mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
                 "asunto": f"¡ALERTA DE {estado}!", # PELIGRO o ADVERTENCIA
