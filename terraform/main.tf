@@ -84,6 +84,10 @@ resource "google_sql_database_instance" "postgres_instance" {
       ipv4_enabled    = false
       private_network = google_compute_network.vpc_monitoreo_menores.id
     }
+    database_flags {
+      name = "cloudsql.logical_decoding"
+      value = "on"
+    }
   }
   lifecycle {
     prevent_destroy = true
@@ -129,14 +133,32 @@ resource "google_bigquery_table" "menores" {
   {"name": "id_adulto", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "dni", "type": "STRING"},
   {"name": "fecha_nacimiento", "type": "STRING"},
   {"name": "direccion", "type": "STRING"},
-  {"name": "url_foto", "type": "STRING"},
   {"name": "discapacidad", "type": "BOOLEAN"}
 
 ]
 EOF
+  table_constraints {
+    primary_key {
+      columns = ["id"]
+    }
+    foreign_keys {
+      name = "fk_menor_adulto"
+      referenced_table {
+        project_id = var.project_id
+        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
+        table_id = google_bigquery_table.adultos
+      }
+      column_references {
+        referencing_column = "id_adulto"
+        referenced_column = "id"
+      }
+    }
+  }
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "google_bigquery_table" "adultos" {
@@ -148,11 +170,16 @@ resource "google_bigquery_table" "adultos" {
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "telefono", "type": "STRING"},
-  {"name": "email", "type": "STRING"},
-  {"name": "ciudad", "type": "STRING"}
 ]
 EOF
+  table_constraints {
+    primary_key {
+      columns = ["id"]
+    }
+  }
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "google_bigquery_table" "historico_notificaciones" {
@@ -174,9 +201,9 @@ resource "google_bigquery_table" "historico_notificaciones" {
 EOF
 }
 
-resource "google_bigquery_table" "zona-restringida" {
+resource "google_bigquery_table" "zonas-restringidas" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "zona-restringida"
+  table_id   = "zonas_restringidas"
 
   schema = <<EOF
 [
@@ -189,6 +216,26 @@ resource "google_bigquery_table" "zona-restringida" {
   {"name": "radio_peligro", "type": "FLOAT"}
 ]
 EOF
+  table_constraints {
+    primary_key {
+      columns = ["id"]
+    }
+    foreign_keys {
+      name = "fk_zona_menor"
+      referenced_table {
+        project_id = var.project_id
+        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
+        table_id = google_bigquery_table.menores.table_id
+      }
+      column_references {
+        referencing_column = "id_menor"
+        referenced_column = "id"
+      }
+    }
+  }
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "google_firestore_database" "database" {
@@ -440,6 +487,29 @@ resource "google_datastream_private_connection" "conexion_privada_datastream" {
   }
 }
 
-resource "google_datastream_stream" "name" {
-  
+resource "google_datastream_stream" "sql_bq" {
+  display_name = "Conexión PostgreSQL con BigQuery"
+  location = var.region
+  stream_id = "sql-bq"
+  desired_state = "RUNNING"
+  source_config {
+    source_connection_profile = google_datastream_connection_profile.conexion_origen_datastream.id
+    postgresql_source_config {
+      replication_slot = "datastream_slot"
+      publication = "datastream_publication"
+      include_objects {
+        postgresql_schemas {
+          schema = "public"
+        }
+      }
+    }
+  }
+  destination_config {
+    destination_connection_profile = google_datastream_connection_profile.conexion_destino_datastream.id
+    bigquery_destination_config {
+      single_target_dataset {
+        dataset_id = google_bigquery_dataset.monitoreo_dataset.id
+      }
+    }
+  }
 }
