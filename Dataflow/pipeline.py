@@ -386,21 +386,3 @@ if __name__ == '__main__':
 
     # Run Process
     run()
-
-
-        # #para hacer pruebas en local usamos: 
-        # # pegando en otrs consola: gcloud pubsub topics publish topic-ubicacion --message '{"id_menor": "Javi", "latitud": 39.4699, "longitud": -0.3763}'
-        # datos_simulados_bq = [{
-        #     'id_menor': 'Javi',           # ID del niño que probaremos
-        #     'nombre': 'Zona Centro',
-        #     'latitud': 39.4699,          # Plaza del Ayto. Valencia
-        #     'longitud': -0.3763,
-        #     'radio_peligro': 100,        # 100 metros
-        #     'radio_advertencia': 500     # 500 metros
-        # }]
-
-
-        # zonas_restringidas = (
-        #     p 
-        #     | "CrearZonasSimuladas" >> beam.Create(datos_simulados_bq)
-        # )
