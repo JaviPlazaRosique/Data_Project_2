@@ -146,7 +146,6 @@ class EnviarNotificaciones(beam.DoFn):
             if estado == "PELIGRO":
                 logging.warning(f"🚨 ALERTA ROJA: El niño {id_menor} ha entrado en una zona de PELIGRO). Notificando al padre.")
                 mensaje_alerta = {
-                "destinatario": "PADRE",
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": f"Atención: {id_menor} ha entrado en una zona de peligro. Por favor, verifique su ubicación.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
@@ -155,7 +154,6 @@ class EnviarNotificaciones(beam.DoFn):
             elif estado == "ADVERTENCIA":
                 logging.info(f"⚠️ ADVERTENCIA: El niño {id_menor} esta cerca de la zona restringida.")
                 mensaje_alerta = {
-                "destinatario": "PADRE",
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": f"Atención: {id_menor} ha entrado en zona de advertencia.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
@@ -198,16 +196,13 @@ class GuardarEnFirestore(beam.DoFn):
             
 
             if estado == "PELIGRO":
-                    destinatario = "PADRE"
                     mensaje = f"¡Alerta! {id_menor} ha entrado en una zona prohibida."
             else: # ADVERTENCIA
-                    destinatario = "PADRE"
                     mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": mensaje,
-                "destinatario": destinatario,
                 "fecha": firestore.SERVER_TIMESTAMP,
                 "leido": False
             }
