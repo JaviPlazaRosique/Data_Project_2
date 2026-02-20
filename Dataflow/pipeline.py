@@ -276,29 +276,23 @@ def run():
 
     parser.add_argument(
                 '--project_id',
-                required=False,
-                default='dataflow-marina',
+                required=True,
                 help='nombre del proyecto en GCP.')
-    
     parser.add_argument(
                 '--ubicacion_pubsub_subscription_name',
-                required=False,
-                default='topic-ubicacion-sub',
+                required=True,
                 help='subscripcion de ubicacion de menores en Pub/Sub.')
     parser.add_argument(
                 '--bigquery_dataset',
-                required=False,
-                default='monitoreo_dataset',
+                required=True,
                 help='BigQuery dataset name.')
     parser.add_argument(
                 '--tabla_zonas',
-                required=False,
-               default='dataflow-marina:monitoreo_dataset.zona-restringida',
+                required=True,
                 help='Tabla BigQuery con zonas restringidas.')
     parser.add_argument(
                 '--historico_notificaciones_bigquery_table',
-                required=False,
-                default='historico_notificaciones',
+                required=True,
                 help='Tabla BigQuery para historico de notificaciones.')
     parser.add_argument(
                 '--db_host', 
@@ -306,8 +300,7 @@ def run():
                 help='IP privada de Cloud SQL.')
     parser.add_argument(
                 '--db_user', 
-                required=False, 
-                default='admin', 
+                required=True, 
                 help='Usuario de la BD.')
     parser.add_argument(
                 '--db_pass', 
