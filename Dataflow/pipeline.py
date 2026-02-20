@@ -55,18 +55,31 @@ class LeerZonasPostgres(beam.DoFn):
         if (tiempo_actual - self.ultima_actualizacion) > self.tiempo_refresco or not self.lista_zonas:
             try:
                 cursor = self.conn.cursor()
-                cursor.execute("SELECT id_menor, nombre, latitud, longitud, radio_peligro, radio_advertencia FROM zonas_restringidas;")
+                query = """
+                    SELECT 
+                        z.id_menor, 
+                        m.nombre AS nombre_menor, 
+                        z.nombre AS nombre_zona, 
+                        z.latitud, 
+                        z.longitud, 
+                        z.radio_peligro, 
+                        z.radio_advertencia 
+                    FROM zonas_restringidas z
+                    JOIN menores m ON z.id_menor = m.id;
+                """
+                cursor.execute(query)                
                 filas = cursor.fetchall()
                 
                 nuevas_zonas = []
                 for fila in filas:
                     zona_dict = {
                         'id_menor': fila[0],
-                        'nombre': fila[1],
-                        'latitud': float(fila[2]),
-                        'longitud': float(fila[3]),
-                        'radio_peligro': float(fila[4]),
-                        'radio_advertencia': float(fila[5])
+                        'nombre_menor': fila[1], # El nombre del niño (de la tabla menores)
+                        'nombre_zona': fila[2],  # El nombre de la zona 
+                        'latitud': float(fila[3]),
+                        'longitud': float(fila[4]),
+                        'radio_peligro': float(fila[5]),
+                        'radio_advertencia': float(fila[6])
                     }
                     nuevas_zonas.append(zona_dict)
                 
@@ -239,8 +252,8 @@ class GuardarAlertasPostgres(beam.DoFn):
         # Filtramos para descartar los OK
         if estado in ["PELIGRO", "ADVERTENCIA"]:
             
-            id_menor = element.get('id_menor'),
-            nombre = element.get('nombre_menor'),
+            id_menor = element.get('id_menor')
+            nombre = element.get('nombre_menor')
             latitud = element.get('latitud')
             longitud = element.get('longitud')
             fecha = element.get('fecha')
@@ -347,7 +360,7 @@ def run():
                         project=args.project_id,
                         dataset=args.bigquery_dataset,
                         table=args.historico_notificaciones_bigquery_table,
-                        schema='id:STRING, id_menor:STRING, latitud:FLOAT, longitud:FLOAT, fecha:TIMESTAMP, estado:STRING',                        
+                        schema='id_menor:STRING, nombre_menor:STRING, latitud:FLOAT, longitud:FLOAT, fecha:TIMESTAMP, estado:STRING',                        
                         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED, 
                         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
                     )

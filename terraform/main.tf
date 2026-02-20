@@ -162,9 +162,9 @@ resource "google_bigquery_table" "historico_notificaciones" {
     field = "fecha"
   }
   schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},  
+[ 
   {"name": "id_menor", "type": "STRING"},
+  {"name": "nombre_menor", "type": "STRING"},
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
   {"name": "fecha", "type": "TIMESTAMP"},

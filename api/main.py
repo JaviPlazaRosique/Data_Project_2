@@ -73,7 +73,7 @@ class ZonasRestringidas(BaseModel):
 class HistoricoNotificaciones(BaseModel):
     id: UUID = Field(default_factory = uuid4)
     id_menor: UUID
-    nombre: str
+    nombre_menor: str
     latitud: float
     longitud: float
     fecha: date
@@ -146,6 +146,7 @@ def crear_tablas():
             CREATE TABLE IF NOT EXISTS historico_notificaciones (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 id_menor UUID REFERENCES menores(id),
+                nombre_menor VARCHAR(100),
                 latitud DOUBLE PRECISION NOT NULL,
                 longitud DOUBLE PRECISION NOT NULL,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -254,8 +255,8 @@ async def crear_ubicaciones(ubicacion: Ubicaciones):
 async def crear_historico_notificaciones(ubicacion: HistoricoNotificaciones, db = Depends(obtener_conexion)):
     try: 
         consulta = text("""
-            INSERT INTO historico_notificaciones (id, id_menor, latitud, longitud, fecha, estado)
-            VALUES (:id, :id_menor, :latitud, :longitud, :fecha, :estado)
+            INSERT INTO historico_notificaciones (id, id_menor, nombre_menor, latitud, longitud, fecha, estado)
+            VALUES (:id, :id_menor, :nombre_menor, :latitud, :longitud, :fecha, :estado)
         """)
 
         db.execute(consulta, ubicacion.model_dump())
