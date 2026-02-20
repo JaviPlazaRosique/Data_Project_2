@@ -90,7 +90,6 @@ class ZonasRestringidas(beam.DoFn):
     """Clase para comparar la ubicación del menor con las zonas restringidas establecidas por el padre"""
    
     def process(self, element):
-        # element =  #Diccionario con datos de la ubicacion del niño (viene del Pub/Sub) y Lista con todas las zonas (viene de la BD)
         try:
             id_menor=element.get('id_menor')
             lat_menor=float(element.get('latitud'))
@@ -206,7 +205,7 @@ class GuardarEnFirestore(beam.DoFn):
                     mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
-                "asunto": f"¡ALERTA DE {estado}!", # PELIGRO o ADVERTENCIA
+                "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": mensaje,
                 "destinatario": destinatario,
                 "fecha": firestore.SERVER_TIMESTAMP,
@@ -236,7 +235,7 @@ class GuardarAlertasPostgres(beam.DoFn):
         
         # Filtramos para descartar los OK
         if estado in ["PELIGRO", "ADVERTENCIA"]:
-            # Tomamos TODAS las columnas
+            
             id_menor = element.get('id_menor')
             latitud = element.get('latitud')
             longitud = element.get('longitud')
@@ -330,7 +329,7 @@ def run():
             p
                 | "LeerDeUbicacionPubSub" >> beam.io.ReadFromPubSub(subscription=f'projects/{args.project_id}/subscriptions/{args.ubicacion_pubsub_subscription_name}')
                 | "TransformarMensajePubSub">> beam.Map(TransformacionPubSub)
-                | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) #ver si es necesario o lo sacamos pq los mensajes vana a venir siempre con la info que queremos
+                | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) 
                 | "VentanaDeTiempo" >> beam.WindowInto(beam.window.FixedWindows(10), allowed_lateness=beam.utils.timestamp.Duration(seconds=5)) # Agrupamos los datos en bloques de 10 segundos
                 | "LeerZonasPostgres" >> beam.ParDo(LeerZonasPostgres(
                     host=args.db_host, 
