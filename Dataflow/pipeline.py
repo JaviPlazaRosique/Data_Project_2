@@ -132,7 +132,7 @@ class ZonasRestringidas(beam.DoFn):
         if 'lista_zonas' in element:
             del element['lista_zonas']
         
-        logging.info(f"Procesado: Niño {id_menor} -> Estado: {estado})")        
+        logging.info(f"Procesado: Niño {id_menor} -> Estado: {estado}")        
 
         yield element    
 
@@ -222,7 +222,51 @@ class GuardarEnFirestore(beam.DoFn):
 
         yield element
 
+class GuardarAlertasPostgres(beam.DoFn):
+    """Guarda todas las columnas en PostgreSQL SOLO si el estado es PELIGRO o ADVERTENCIA."""
+    def __init__(self, host, db, user, password):
+        self.host = host
+        self.db = db
+        self.user = user
+        self.password = password
 
+    def setup(self):
+        self.conn = psycopg2.connect(
+            host=self.host, database=self.db, user=self.user, password=self.password
+        )
+
+    def process(self, element):
+        estado = element.get('estado')
+        
+        # Filtramos para descartar los OK
+        if estado in ["PELIGRO", "ADVERTENCIA"]:
+            # Tomamos TODAS las columnas
+            id_menor = element.get('id_menor')
+            latitud = element.get('latitud')
+            longitud = element.get('longitud')
+            fecha = element.get('fecha')
+            
+            try:
+                cursor = self.conn.cursor()
+                query = """
+                    INSERT INTO historico_notificaciones (id_menor, latitud, longitud, estado, fecha) 
+                    VALUES (%s, %s, %s, %s, %s);
+                """
+                cursor.execute(query, (id_menor, latitud, longitud, estado, fecha))
+                self.conn.commit() 
+                cursor.close()
+                
+                logging.info(f"✅ BD Postgres Actualizada con ALERTA: {estado} para {id_menor}")
+                
+            except Exception as e:
+                self.conn.rollback() 
+                logging.error(f"❌ Error guardando alerta en Postgres: {e}")
+
+        yield element
+
+    def teardown(self):
+        if hasattr(self, 'conn') and self.conn:
+            self.conn.close()
 
 """ Codigo: Proceso de Dataflow  """
 
@@ -318,6 +362,15 @@ def run():
         )
         (mensajes_procesados
             | "GuardarEnFirestore" >> beam.ParDo(GuardarEnFirestore(args.project_id)) 
+        )
+
+        (mensajes_procesados
+            | "GuardarAlertasPostgres" >> beam.ParDo(GuardarAlertasPostgres(
+                    host=args.db_host, 
+                    db="menores_db", 
+                    user=args.db_user, 
+                    password=args.db_pass
+                ))
         )
         
 
