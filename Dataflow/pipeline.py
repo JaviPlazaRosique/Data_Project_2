@@ -156,7 +156,7 @@ class EnviarNotificaciones(beam.DoFn):
             elif estado == "ADVERTENCIA":
                 logging.info(f"⚠️ ADVERTENCIA: El niño {id_menor} esta cerca de la zona restringida.")
                 mensaje_alerta = {
-                "destinatario": "MENOR",
+                "destinatario": "PADRE",
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": f"Atención: {id_menor} ha entrado en zona de advertencia.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
@@ -202,7 +202,7 @@ class GuardarEnFirestore(beam.DoFn):
                     destinatario = "PADRE"
                     mensaje = f"¡Alerta! {id_menor} ha entrado en una zona prohibida."
             else: # ADVERTENCIA
-                    destinatario = "MENOR"
+                    destinatario = "PADRE"
                     mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
