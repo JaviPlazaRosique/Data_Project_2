@@ -70,3 +70,19 @@ resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
     role = "roles/run.invoker"
     member = "allUsers"
 }
+
+# Aplicamos los roles necesarios a la cuenta de servicio de Looker
+resource "google_project_iam_member" "looker_project_roles" {
+  for_each = toset(var.looker_roles_list)
+
+  project = var.project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.looker_sa.email}"
+}
+
+# Permiso específico para que Looker pueda gestionar su dataset de scratch
+resource "google_bigquery_dataset_iam_member" "looker_scratch_editor" {
+  dataset_id = google_bigquery_dataset.looker_scratch.dataset_id
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${google_service_account.looker_sa.email}"
+}

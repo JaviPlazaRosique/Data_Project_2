@@ -1,9 +1,9 @@
-terraform {
-  backend "gcs" {
-    bucket  = "tfstate_data_project_2_jamagece"
-    prefix  = "terraform/state" 
-  }
-}
+#terraform {
+  #backend "gcs" {
+    #bucket  = "tfstate_data_project_2_jamagece"
+    #prefix  = "terraform/state" 
+  #}
+#}
 
 resource "google_project_service" "activar_servicios_proyecto" {
   for_each = toset(var.servicios_gcp)
@@ -406,4 +406,34 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   depends_on = [
     docker_registry_image.imagen_web_push
   ]
+}
+
+#creamos la cuenta de servicio para looker
+resource"google_service_account" "looker_sa" {
+  account_id = "looker"
+  display_name = "Looker Service Account"
+}
+
+#creamos la cuenta de looker
+
+resource "google_service_account" "looker_sa" {
+  account_id = var.looker_sa_id
+  display_name "Looker Service Account"
+  project = var.project_id
+}
+
+# Generamos la clave JSON (se guarda en el estado de Terraform)
+resource "google_service_account_key" "looker_key" {
+  service_account_id = google_service_account.looker_sa.name
+}
+
+# dataset tablas
+
+resource "google_bigquery_dataset" "looker_scratch" {
+  dataset_id                  = var.looker_dataset_id
+  friendly_name               = "Looker Scratch Dataset"
+  description                 = "Dataset para tablas temporales y rankings de Looker"
+  location                    = var.region
+  
+  default_table_expiration_ms = var.looker_expiration_ms
 }

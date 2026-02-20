@@ -28,3 +28,22 @@ variable "servicios_gcp" {
     "servicenetworking.googleapis.com"
   ]
 }
+
+#variables looker 
+variable "looker_sa_id" {
+  description = "ID único para la cuenta de servicio de Looker"
+  type        = string
+  default     = "looker-viz-sa"
+}
+
+variable "looker_dataset_id" {
+  description = "Nombre del dataset de scratch para Looker"
+  type        = string
+  default     = "looker_scratch"
+}
+
+variable "looker_expiration_ms" {
+  description = "Tiempo de vida de las tablas temporales en milisegundos (7 días por defecto)"
+  type        = number
+  default     = 604800000 
+}
