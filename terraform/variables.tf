@@ -29,31 +29,8 @@ variable "servicios_gcp" {
   ]
 }
 
-#variables looker 
-variable "looker_sa_id" {
-  description = "ID único para la cuenta de servicio de Looker"
+variable "artifact_repo_dashboard" {
+  description = "Nombre del repositorio Docker para dashboards Plotly"
   type        = string
-  default     = "looker-viz-sa"
-}
-
-variable "looker_dataset_id" {
-  description = "Nombre del dataset de scratch para Looker"
-  type        = string
-  default     = "looker_scratch"
-}
-
-variable "looker_expiration_ms" {
-  description = "Tiempo de vida de las tablas temporales en milisegundos (7 días por defecto)"
-  type        = number
-  default     = 604800000 
-}
-
-variable "looker_roles_list" {
-  description = "Lista de roles necesarios para que Looker acceda a BigQuery"
-  type        = list(string)
-  default     = [
-    "roles/bigquery.dataViewer",
-    "roles/bigquery.jobUser",
-    "roles/bigquery.metadataViewer"
-  ]
+  default     = "repo-dashboard-plotly"
 }

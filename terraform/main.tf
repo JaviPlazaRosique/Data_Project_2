@@ -407,27 +407,46 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     docker_registry_image.imagen_web_push
   ]
 }
-
-#creamos la cuenta de looker
-
-resource "google_service_account" "looker_sa" {
-  account_id   = var.looker_sa_id
-  display_name = "Looker Service Account"  
-  project      = var.project_id
+resource "google_artifact_registry_repository" "repo_dashboard" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = var.artifact_repo_dashboard
+  format        = "DOCKER"
 }
 
-# Generamos la clave JSON (se guarda en el estado de Terraform)
-resource "google_service_account_key" "looker_key" {
-  service_account_id = google_service_account.looker_sa.name
+resource "docker_image" "dashboard" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_dashboard.name}/plotly-dashboard:latest"
+
+  build {
+    context    = "${path.module}/../Looker"   # carpeta donde está tu Dockerfile y app.py
+    dockerfile = "Dockerfile"
+  }
 }
 
-# dataset tablas
+resource "docker_registry_image" "dashboard_push" {
+  name          = docker_image.dashboard.name
+  keep_remotely = true
+  depends_on    = [google_artifact_registry_repository.repo_dashboard]
+}
 
-resource "google_bigquery_dataset" "looker_scratch" {
-  dataset_id                  = var.looker_dataset_id
-  friendly_name               = "Looker Scratch Dataset"
-  description                 = "Dataset para tablas temporales y rankings de Looker"
-  location                    = var.region
-  
-  default_table_expiration_ms = var.looker_expiration_ms
+resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
+  name                = "dashboard-cloud-run"
+  location            = var.region
+  deletion_protection = false
+
+  template {
+    containers {
+      # IMPORTANTE: La ruta debe ir entre comillas
+      image = "europe-west6-docker.pkg.dev/gemma-12/repo-dashboard-plotly/plotly-dashboard:latest"
+      ports {
+        container_port = 8080
+      }
+      env {
+        name  = "ID_PROYECTO"
+        value = var.project_id
+      }
+    }
+  }
+
+  depends_on = [docker_registry_image.dashboard_push]
 }
