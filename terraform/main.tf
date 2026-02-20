@@ -408,18 +408,12 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   ]
 }
 
-#creamos la cuenta de servicio para looker
-resource"google_service_account" "looker_sa" {
-  account_id = "looker"
-  display_name = "Looker Service Account"
-}
-
 #creamos la cuenta de looker
 
 resource "google_service_account" "looker_sa" {
-  account_id = var.looker_sa_id
-  display_name "Looker Service Account"
-  project = var.project_id
+  account_id   = var.looker_sa_id
+  display_name = "Looker Service Account"  
+  project      = var.project_id
 }
 
 # Generamos la clave JSON (se guarda en el estado de Terraform)

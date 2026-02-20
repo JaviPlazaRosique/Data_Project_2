@@ -47,3 +47,13 @@ variable "looker_expiration_ms" {
   type        = number
   default     = 604800000 
 }
+
+variable "looker_roles_list" {
+  description = "Lista de roles necesarios para que Looker acceda a BigQuery"
+  type        = list(string)
+  default     = [
+    "roles/bigquery.dataViewer",
+    "roles/bigquery.jobUser",
+    "roles/bigquery.metadataViewer"
+  ]
+}
