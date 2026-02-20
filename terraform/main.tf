@@ -22,6 +22,7 @@ resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
   purpose = "VPC_PEERING"
   address_type = "INTERNAL"
   network = google_compute_network.vpc_monitoreo_menores.id
+  address = "10.0.0.0"
   prefix_length = 16
 }
 
@@ -402,4 +403,43 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   depends_on = [
     docker_registry_image.imagen_web_push
   ]
+}
+
+resource "google_datastream_connection_profile" "conexion_origen_datastream" {
+  display_name = "Conexión de origen para Datastream (PostgreSQL)"
+  location = var.region
+  connection_profile_id = "conexion-sql-origen-datastream"
+  postgresql_profile {
+    hostname = google_sql_database_instance.postgres_instance.private_ip_address
+    port = 5432
+    username = google_sql_user.postgres_user.name
+    password = google_sql_user.postgres_user.password
+    database = google_sql_database.menores_db.name
+  }
+  private_connectivity {
+    private_connection = google_datastream_private_connection.conexion_privada_datastream.id
+  }
+}
+
+resource "google_datastream_connection_profile" "conexion_destino_datastream" {
+  display_name = "Conexión de destino para Datastream (BigQuery)"
+  location = var.region
+  connection_profile_id = "conexion-bq-destino-datastream"
+  bigquery_profile {
+    
+  }
+}
+
+resource "google_datastream_private_connection" "conexion_privada_datastream" {
+  display_name = "Conexión privada para Datastream"
+  location = var.region
+  private_connection_id = "conexion-psc-datastream"
+  vpc_peering_config {
+    vpc = google_compute_network.vpc_monitoreo_menores.id
+    subnet = "10.1.0.0/29"
+  }
+}
+
+resource "google_datastream_stream" "name" {
+  
 }
