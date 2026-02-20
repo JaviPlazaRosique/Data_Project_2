@@ -101,9 +101,11 @@ class ZonasRestringidas(beam.DoFn):
             return
         
         estado = "OK" 
+        element['nombre_menor'] = "el menor"
 
         for zona in lista_zonas:
             if id_menor == zona.get('id_menor'): 
+                element['nombre_menor'] = zona.get('nombre', 'el menor')
                 lat_zona=float(zona.get('latitud'))
                 long_zona=float(zona.get('longitud'))
                 radio_peligro = float(zona.get('radio_peligro'))
@@ -137,30 +139,30 @@ class EnviarNotificaciones(beam.DoFn):
         estado = element.get('estado')
 
         if estado == "OK":
-            logging.info(f"OK: El niño {element.get('id_menor')} está en una zona segura. No se requiere notificación.")  
+            logging.info(f"OK: El niño {element.get('nombre_menor')} está en una zona segura. No se requiere notificación.")  
          
         else:
-            id_menor = element.get('id_menor')
+            nombre_menor = element.get('nombre_menor')
             mensaje_alerta = None
 
             if estado == "PELIGRO":
-                logging.warning(f"🚨 ALERTA ROJA: El niño {id_menor} ha entrado en una zona de PELIGRO). Notificando al padre.")
+                logging.warning(f"🚨 ALERTA ROJA: El niño {nombre_menor} ha entrado en una zona de PELIGRO). Notificando al padre.")
                 mensaje_alerta = {
                 "asunto": f"¡ALERTA DE {estado}!",
-                "cuerpo": f"Atención: {id_menor} ha entrado en una zona de peligro. Por favor, verifique su ubicación.",
+                "cuerpo": f"Atención: {nombre_menor} ha entrado en una zona de peligro. Por favor, verifique su ubicación.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
             }
             
             elif estado == "ADVERTENCIA":
-                logging.info(f"⚠️ ADVERTENCIA: El niño {id_menor} esta cerca de la zona restringida.")
+                logging.info(f"⚠️ ADVERTENCIA: El niño {nombre_menor} esta cerca de la zona restringida.")
                 mensaje_alerta = {
                 "asunto": f"¡ALERTA DE {estado}!",
-                "cuerpo": f"Atención: {id_menor} ha entrado en zona de advertencia.",
+                "cuerpo": f"Atención: {nombre_menor} ha entrado en zona de advertencia.",
                 "fecha y hora": element.get('fecha', datetime.now().isoformat())
             }
            
             else:
-                logging.info(f"OK: El niño {id_menor} está en una zona segura.")
+                logging.info(f"OK: El niño {nombre_menor} está en una zona segura.")
 
 
             if mensaje_alerta:
@@ -177,18 +179,23 @@ class GuardarEnFirestore(beam.DoFn):
 
     def process(self, element):
         id_menor = element['id_menor']
+        nombre_menor = element['nombre_menor']
         estado = element['estado']
+
+        # Usamos id_menor para el documento. Así, si hay dos "Pepitos", cada uno tendrá su propio documento basado en su ID único.
 
         # ubicacion
         doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
         datos_ubicacion = {
+            "id_menor": id_menor,
+            "nombre": nombre_menor,
             "latitud": element['latitud'],
             "longitud": element['longitud'],
             "estado": estado,
             "fecha": firestore.SERVER_TIMESTAMP 
         }
         doc_ref_ubic.set(datos_ubicacion, merge=True) #merge=true para que no borre datos anteriores como info del niño, solo actualiza la ubicacion y el estado.
-        logging.info(f"Ubicación actualizada: {id_menor}")
+        logging.info(f"Ubicación actualizada: {nombre_menor}")
 
         # notificaciones
 
@@ -196,11 +203,12 @@ class GuardarEnFirestore(beam.DoFn):
             
 
             if estado == "PELIGRO":
-                    mensaje = f"¡Alerta! {id_menor} ha entrado en una zona prohibida."
+                    mensaje = f"¡Alerta! {nombre_menor} ha entrado en una zona prohibida."
             else: # ADVERTENCIA
                     mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
+                "nombre_menor": nombre_menor,
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": mensaje,
                 "fecha": firestore.SERVER_TIMESTAMP,
@@ -231,7 +239,8 @@ class GuardarAlertasPostgres(beam.DoFn):
         # Filtramos para descartar los OK
         if estado in ["PELIGRO", "ADVERTENCIA"]:
             
-            id_menor = element.get('id_menor')
+            id_menor = element.get('id_menor'),
+            nombre = element.get('nombre_menor'),
             latitud = element.get('latitud')
             longitud = element.get('longitud')
             fecha = element.get('fecha')
@@ -239,10 +248,10 @@ class GuardarAlertasPostgres(beam.DoFn):
             try:
                 cursor = self.conn.cursor()
                 query = """
-                    INSERT INTO historico_notificaciones (id_menor, latitud, longitud, estado, fecha) 
-                    VALUES (%s, %s, %s, %s, %s);
+                    INSERT INTO historico_notificaciones (id_menor, nombre_menor, latitud, longitud, estado, fecha) 
+                    VALUES (%s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(query, (id_menor, latitud, longitud, estado, fecha))
+                cursor.execute(query, (id_menor, nombre, latitud, longitud, estado, fecha))
                 self.conn.commit() 
                 cursor.close()
                 
