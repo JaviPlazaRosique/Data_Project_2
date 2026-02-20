@@ -428,16 +428,14 @@ resource "docker_registry_image" "dashboard_push" {
   keep_remotely = true
   depends_on    = [google_artifact_registry_repository.repo_dashboard]
 }
-
 resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
-  name                = "dashboard-cloud-run"
+  name                = "plotly-dashboard-v2"  # <--- Cambia este nombre
   location            = var.region
   deletion_protection = false
 
   template {
     containers {
-      # IMPORTANTE: La ruta debe ir entre comillas
-      image = "europe-west6-docker.pkg.dev/gemma-12/repo-dashboard-plotly/plotly-dashboard:latest"
+      image = docker_registry_image.dashboard_push.name 
       ports {
         container_port = 8080
       }
@@ -447,6 +445,17 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
       }
     }
   }
+  traffic {
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+  }
 
   depends_on = [docker_registry_image.dashboard_push]
 }
+
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
+  location = google_cloud_run_v2_service.dashboard_cloud_run.location
+  name     = google_cloud_run_v2_service.dashboard_cloud_run.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+} 
