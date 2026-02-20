@@ -38,7 +38,8 @@ resource "google_project_iam_member" "dataflow_permissions" {
     "roles/datastore.user",      
     "roles/storage.objectAdmin", 
     "roles/pubsub.publisher",    
-    "roles/viewer"               
+    "roles/viewer",         
+    "roles/cloudsql.client"      
   ])
 
   project = var.project_id
