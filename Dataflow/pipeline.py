@@ -9,6 +9,7 @@ se le enviará una notificación al padre.
 # A. Librerias Apache Beam 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms import combiners
 
 # B. Librerias Python 
 import argparse
@@ -338,6 +339,9 @@ def run():
                 | "TransformarMensajePubSub">> beam.Map(TransformacionPubSub)
                 | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) 
                 | "VentanaDeTiempo" >> beam.WindowInto(beam.window.FixedWindows(10), allowed_lateness=beam.utils.timestamp.Duration(seconds=5)) # Agrupamos los datos en bloques de 10 segundos
+                | "MapearConClave" >> beam.Map(lambda x: (x.get('id_menor'), x)) # filtramos usando el id_menor
+                | "QuedarseConElUltimo" >> combiners.Latest.PerKey() #De todos los mensajes con mismo id en esos 10s, se queda solo con el más reciente
+                | "ExtraerValores" >> beam.Map(lambda x: x[1]) #Le quitamos el filtro para que el diccionario vuelva a la normalidad y siga el flujo
                 | "LeerZonasPostgres" >> beam.ParDo(LeerZonasPostgres(
                     host=args.db_host, 
                     db="menores_db", 
