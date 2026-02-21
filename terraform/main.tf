@@ -174,7 +174,7 @@ resource "google_bigquery_table" "adultos" {
 [
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
-  {"name": "apellidos", "type": "STRING"},
+  {"name": "apellidos", "type": "STRING"}
 ]
 EOF
   table_constraints {
@@ -501,6 +501,7 @@ resource "google_datastream_stream" "sql_bq" {
   location = var.region
   stream_id = "sql-bq"
   desired_state = "RUNNING"
+  backfill_all {}
   source_config {
     source_connection_profile = google_datastream_connection_profile.conexion_origen_datastream.id
     postgresql_source_config {
