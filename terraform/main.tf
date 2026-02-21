@@ -153,7 +153,7 @@ EOF
       referenced_table {
         project_id = var.project_id
         dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-        table_id = google_bigquery_table.adultos
+        table_id = google_bigquery_table.adultos.id
       }
       column_references {
         referencing_column = "id_adulto"
