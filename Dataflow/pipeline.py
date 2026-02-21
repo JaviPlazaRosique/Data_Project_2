@@ -204,7 +204,7 @@ class GuardarEnFirestore(beam.DoFn):
         doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
         datos_ubicacion = {
             "id_menor": id_menor,
-            "nombre": nombre_menor,
+            "nombre_menor": nombre_menor,
             "latitud": element['latitud'],
             "longitud": element['longitud'],
             "estado": estado,
