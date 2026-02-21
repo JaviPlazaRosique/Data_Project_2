@@ -8,7 +8,8 @@ import os
 # --- Configuración de Estilos ---
 AZUL_OSCURO = "#002b5c"  
 GRIS_TEXTO = "#546e7a" 
-ROJO_ALERTA = "#d32f2f" # Color para resaltar alarmas
+ROJO_ALERTA = "#d32f2f" 
+AZUL_CLARO = "#e3f2fd"
 
 app = dash.Dash(__name__)
 server = app.server
@@ -30,6 +31,7 @@ def get_data():
         return df
     except Exception as e:
         print(f"DEBUG: Error al conectar a BigQuery: {e}")
+        # Datos de respaldo para pruebas
         return pd.DataFrame({
             "id_menor": ["M-01", "M-02", "M-03", "M-04"],
             "lat": [40.4167, 40.4200, 40.4150, 40.4180],
@@ -44,7 +46,7 @@ df_global = get_data()
 def business_logic_card(titulo, texto):
     return html.Div(
         style={
-            "backgroundColor": "#e3f2fd", 
+            "backgroundColor": AZUL_CLARO, 
             "padding": "20px",
             "borderRadius": "8px",
             "marginBottom": "25px",
@@ -69,17 +71,15 @@ app.layout = html.Div(
             ]
         ),
 
-        # Sistema de Pestañas Corregido
+        # Sistema de Pestañas
         dcc.Tabs(id="tabs-sistema", value='tab-1', children=[
             
             # PESTAÑA 1: CONTEXTO
             dcc.Tab(label="📘 Contexto", value="tab-1", children=[
                 html.Div(style={"backgroundColor": "#ffffff", "padding": "40px", "borderRadius": "0 0 15px 15px"}, children=[
                     html.H2("Visión General del Sistema", style={"color": AZUL_OSCURO, "fontSize": "28px"}),
-                    html.P("Panel de supervisión que centraliza métricas clave sobre alertas geolocalizadas.", style={"fontSize": "20px", "color": GRIS_TEXTO}),
-                    
                     business_logic_card("📑 Índice de Visualizaciones", 
-                        "1. **Reincidencia**\n2. **Zonas Activas**\n3. **Monitor Real-Time**\n4. **Permanencia**\n5. **Concentración**\n6. **Respuesta Parental**"),
+                        "1. **Reincidencia**\n2. **Mapa de Riesgo General**\n3. **Estado del Servicio**\n4. **Permanencia Crítica (> 5 min)**"),
                     
                     html.Hr(style={"margin": "40px 0"}),
                     html.Div(style={"display": "flex", "justifyContent": "center", "gap": "40px"}, children=[
@@ -89,62 +89,52 @@ app.layout = html.Div(
                 ])
             ]),
 
-            # PESTAÑA 2: DASHBOARD (GRÁFICO DE BARRAS)
+            # PESTAÑA 2: RANKING REINCIDENCIA
             dcc.Tab(label="📊 Ranking reincidencia", value="tab-2", children=[
                 html.Div(style={"backgroundColor": "#ffffff", "padding": "30px", "borderRadius": "0 0 15px 15px"}, children=[
                     html.H2("Ranking de Reincidencia Crítica", style={"color": AZUL_OSCURO}),
-                    business_logic_card("📊 Análisis de Alertas", "Filtre por ID de menor para analizar el riesgo individual."),
-                    
-                    html.Label("Seleccionar niños específicos:", style={"fontWeight": "600", "fontSize": "18px"}),
                     dcc.Dropdown(
                         id="pestaña-niño",
                         options=[{"label": "Ver Todos (Top 10)", "value": "ALL"}] + 
                                 [{"label": f"ID Menor: {i}", "value": i} for i in df_global["id_menor"].unique()],
-                        value="ALL", multi=True, clearable=False, style={"marginTop": "10px", "marginBottom": "20px"}
+                        value="ALL", multi=True, clearable=False, style={"marginBottom": "20px"}
                     ),
                     dcc.Graph(id="grafico-barras-alertas")
                 ])
             ]),
 
-            # PESTAÑA 3: MAPA DE RIESGO
+            # PESTAÑA 3: MAPA DE RIESGO GENERAL
             dcc.Tab(label="📍 Mapa de Riesgo", value="tab-3", children=[
                 html.Div(style={"backgroundColor": "#ffffff", "padding": "40px", "borderRadius": "0 0 15px 15px"}, children=[
-                    html.H2("Concentración Geográfica", style={"color": AZUL_OSCURO, "fontSize": "28px"}),
-                    business_logic_card("📌 Lógica de Mapa", "🟡 **Amarillo**: Proximidad | 🔴 **Rojo**: Incursión"),
+                    html.H2("Concentración Geográfica de Alertas", style={"color": AZUL_OSCURO}),
                     dcc.Graph(id="mapa-alertas")
                 ])
             ]),
 
-            # PESTAÑA 4: INSIGHTS
-            dcc.Tab(label="🚨 Insights", value="tab-4", children=[
+            # PESTAÑA 4: ESTADO DEL SERVICIO
+            dcc.Tab(label="📈 Estado del Servicio", value="tab-5", children=[
                 html.Div(style={"backgroundColor": "#ffffff", "padding": "40px", "borderRadius": "0 0 15px 15px"}, children=[
-                    html.H2("Conclusiones Clave", style={"color": AZUL_OSCURO}),
-                    business_logic_card("🔎 Interpretación", "Evaluación comparativa para intervenciones preventivas.")
+                    html.H2("Monitor de Conectividad y Alertas Activas", style={"color": AZUL_OSCURO}),
+                    html.Div(style={"display": "flex", "justifyContent": "space-around", "marginTop": "20px"}, children=[
+                        html.Div(style={"textAlign": "center", "padding": "20px", "border": f"2px solid {AZUL_OSCURO}", "borderRadius": "15px", "width": "40%"}, children=[
+                            html.H3("Niños Conectados"),
+                            html.H1(len(df_global["id_menor"].unique()), style={"fontSize": "60px"})
+                        ]),
+                        html.Div(style={"textAlign": "center", "padding": "20px", "border": f"2px solid {ROJO_ALERTA}", "borderRadius": "15px", "width": "40%"}, children=[
+                            html.H3("Alarmas Activas"),
+                            html.H1(df_global["alertas"].sum(), style={"color": ROJO_ALERTA, "fontSize": "60px"})
+                        ])
+                    ])
                 ])
             ]),
 
-            # --- NUEVA PESTAÑA 5: ESTADO DEL SERVICIO ---
-            dcc.Tab(label="📈 Estado del Servicio", value="tab-5", children=[
+            # PESTAÑA 5: PERMANENCIA CRÍTICA (> 5 MIN)
+            dcc.Tab(label="⏳ Permanencia Crítica", value="tab-permanencia", children=[
                 html.Div(style={"backgroundColor": "#ffffff", "padding": "40px", "borderRadius": "0 0 15px 15px"}, children=[
-                    html.H2("Monitor de Conectividad y Alertas Activas", style={"color": AZUL_OSCURO, "fontSize": "28px"}),
-                    
-                    html.Div(style={"display": "flex", "justifyContent": "space-around", "marginTop": "20px"}, children=[
-                        # Cuadro Niños Conectados
-                        html.Div(style={"textAlign": "center", "padding": "20px", "border": f"2px solid {AZUL_OSCURO}", "borderRadius": "15px", "width": "40%"}, children=[
-                            html.H3("Niños Conectados", style={"color": GRIS_TEXTO}),
-                            html.H1(len(df_global["id_menor"].unique()), style={"color": AZUL_OSCURO, "fontSize": "60px"})
-                        ]),
-                        # Cuadro Alarmas Activas
-                        html.Div(style={"textAlign": "center", "padding": "20px", "border": f"2px solid {ROJO_ALERTA}", "borderRadius": "15px", "width": "40%"}, children=[
-                            html.H3("Alarmas Activas", style={"color": GRIS_TEXTO}),
-                            html.H1(df_global["alertas"].sum(), style={"color": ROJO_ALERTA, "fontSize": "60px"})
-                        ])
-                    ]),
-                    
-                    html.Br(),
-                    business_logic_card("🧠 Lógica de Monitorización", 
-                        "**Lógica:** Conteo dinámico de identificadores únicos para la conectividad y suma total de registros para las alarmas.\n\n"
-                        "**Propósito:** Visualizar en tiempo real el volumen de usuarios y el nivel de criticidad en el sistema.")
+                    html.H2("Zonas de Permanencia Prolongada (> 5 mins)", style={"color": AZUL_OSCURO}),
+                    business_logic_card("🕒 Detección de Riesgo Estático", 
+                        "Marcadores 📍 indican ubicaciones donde los menores permanecen en zonas restringidas por tiempo excesivo."),
+                    dcc.Graph(id="mapa-permanencia")
                 ])
             ])
         ])
@@ -153,33 +143,39 @@ app.layout = html.Div(
 
 # --- CALLBACKS ---
 
-# Callback para el Mapa
-@app.callback(
-    Output("mapa-alertas", "figure"),
-    Input("tabs-sistema", "value")
-)
+# Callback para el Mapa de Riesgo General
+@app.callback(Output("mapa-alertas", "figure"), Input("tabs-sistema", "value"))
 def render_map(tab):
     if tab != 'tab-3': return dash.no_update
-    color_map = {"Acercamiento": "#FFD700", "Zona Restringida": "#FF0000"}
     fig = px.scatter_mapbox(df_global, lat="lat", lon="lon", color="tipo_alerta", size="alertas",
-                            color_discrete_map=color_map, zoom=12, height=600)
+                            color_discrete_map={"Acercamiento": "#FFD700", "Zona Restringida": "#FF0000"}, zoom=12, height=600)
     fig.update_layout(mapbox_style="carto-positron", margin={"r":0,"t":0,"l":0,"b":0})
     return fig
 
 # Callback para el Gráfico de Barras
-@app.callback(
-    Output("grafico-barras-alertas", "figure"),
-    Input("pestaña-niño", "value")
-)
+@app.callback(Output("grafico-barras-alertas", "figure"), Input("pestaña-niño", "value"))
 def actualizar_grafico(seleccion):
-    if not seleccion or "ALL" in seleccion:
-        df_plot = df_global.head(10)
-    else:
-        lista_seleccion = seleccion if isinstance(seleccion, list) else [seleccion]
-        df_plot = df_global[df_global["id_menor"].isin(lista_seleccion)]
-
+    df_plot = df_global.head(10) if (not seleccion or "ALL" in seleccion) else df_global[df_global["id_menor"].isin(seleccion if isinstance(seleccion, list) else [seleccion])]
     fig = px.bar(df_plot, x="id_menor", y="alertas", text="alertas", color_discrete_sequence=[AZUL_OSCURO])
-    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font=dict(color=AZUL_OSCURO))
+    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+    return fig
+
+# Callback para el Mapa de Permanencia con Emoji 📍
+@app.callback(Output("mapa-permanencia", "figure"), Input("tabs-sistema", "value"))
+def render_mapa_permanencia(tab):
+    if tab != 'tab-permanencia': return dash.no_update
+    df_perm = df_global[df_global["tipo_alerta"] == "Zona Restringida"].copy()
+    
+    fig = px.scatter_mapbox(df_perm, lat="lat", lon="lon", zoom=13, height=600)
+    
+    fig.update_traces(
+        marker=dict(size=12, color=ROJO_ALERTA),
+        mode='markers+text',
+        text=["📍" for _ in range(len(df_perm))],
+        textposition="top center"
+    )
+    
+    fig.update_layout(mapbox_style="carto-positron", margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False)
     return fig
 
 if __name__ == "__main__":
