@@ -71,3 +71,9 @@ resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
     member = "allUsers"
 }
 
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
+  location = google_cloud_run_v2_service.dashboard_cloud_run.location
+  name     = google_cloud_run_v2_service.dashboard_cloud_run.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+} 
