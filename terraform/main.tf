@@ -420,5 +420,7 @@ output "cicd_service_account_key" {
   sensitive   = true
 }
 
-# Ejecutar este código para ver la key: terraform output -raw cicd_service_account_key | ConvertFrom-Base64
-# En el repositorio del proyecto: Settings > Secrets > Actions > New Repository Secret con el nombre GCP_SA_KEY
+# Sacar los outpus y crear los secrets en GitHub para que el pipeline de CI/CD pueda desplegar en GCP usando esta cuenta de servicio.
+# En el repositorio del proyecto: Settings > Secrets > Actions > New Repository Secret con el nombre 
+# GCP_SA_KEY, DB_HOST, DB_USER, DB_PASS, GCP_PROJECT_ID, GCP_REGION
+
