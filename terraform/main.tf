@@ -106,6 +106,11 @@ resource "random_password" "api_key" {
   special = false
 }
 
+resource "random_password" "contr_usuario_datastream" {
+  length = 32
+  special = false
+}
+
 resource "google_sql_user" "postgres_user" {
   name = "admin"
   instance = google_sql_database_instance.postgres_instance.name
@@ -349,6 +354,10 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
         name = "API_KEY"
         value = random_password.api_key.result
       }
+      env {
+        name = "CONTR_USUARIO_DATASTREAM"
+        value = random_password.contr_usuario_datastream.result
+      }
     }
     vpc_access {
       network_interfaces {
@@ -500,6 +509,32 @@ resource "google_datastream_stream" "sql_bq" {
       include_objects {
         postgresql_schemas {
           schema = "public"
+          postgresql_tables {
+            table = "adultos"
+            postgresql_columns {column = "id"}
+            postgresql_columns {column = "nombre"}
+            postgresql_columns {column = "apellidos"}
+          }
+          postgresql_tables {
+            table = "menores"
+            postgresql_columns {column = "id"}
+            postgresql_columns {column = "id_adulto"}
+            postgresql_columns {column = "nombre"}
+            postgresql_columns {column = "apellidos"}
+            postgresql_columns {column = "fecha_nacimiento"}
+            postgresql_columns {column = "direccion"}
+            postgresql_columns {column = "discapacidad"}
+          }
+          postgresql_tables {
+            table = "zonas_restringidas"
+            postgresql_columns {column = "id"}
+            postgresql_columns {column = "id_menor"}
+            postgresql_columns {column = "nombre"}
+            postgresql_columns {column = "latitud"}
+            postgresql_columns {column = "longitud"}
+            postgresql_columns {column = "radio_peligro"}
+            postgresql_columns {column = "radio_advertencia"}
+          }
         }
       }
     }

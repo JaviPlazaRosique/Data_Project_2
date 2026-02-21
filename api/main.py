@@ -17,6 +17,7 @@ id_proyecto = os.getenv("ID_PROYECTO")
 topico_ubicaciones = os.getenv("TOPICO_UBICACIONES")
 bucket_fotos = os.getenv("BUCKET_FOTOS")
 api_key_seguridad = os.getenv("API_KEY")
+contr_usuario_datastream = os.getenv("CONTR_USUARIO_DATASTREAM")
 
 publisher = pubsub_v1.PublisherClient()
 topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
@@ -151,6 +152,34 @@ def crear_tablas():
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 estado VARCHAR(20)
             );
+        """))
+        conn.execute(text(f"""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'usuario_datastream') THEN
+                    CREATE USER usuario_datastream WITH REPLICATION IN ROLE cloudsqlsuperuser LOGIN PASSWORD '{contr_usuario_datastream}';
+                END IF;
+            END $$;
+        """))
+        conn.execute(text(f'GRANT CONNECT ON DATABASE "{nombre_bd}" TO usuario_datastream;'))
+        conn.execute(text("GRANT USAGE ON SCHEMA public TO usuario_datastream;"))
+        conn.execute(text("GRANT SELECT ON ALL TABLES IN SCHEMA public TO usuario_datastream;"))
+        conn.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO usuario_datastream;"))
+        conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'datastream_publication') THEN
+                    CREATE PUBLICATION datastream_publication FOR ALL TABLES;
+                END IF;
+            END $$;
+        """))
+        conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = 'datastream_slot') THEN
+                    PERFORM pg_create_logical_replication_slot('datastream_slot', 'pgoutput');
+                END IF;
+            END $$;
         """))
         conn.commit()
 
