@@ -25,13 +25,12 @@ CREATE TABLE IF NOT EXISTS adultos (
 CREATE TABLE IF NOT EXISTS historico_notificaciones (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_menor UUID REFERENCES menores(id),
+    nombre_menor VARCHAR (100),
     latitud DOUBLE PRECISION NOT NULL,
     longitud DOUBLE PRECISION NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     estado VARCHAR(20)
 );
-
-ALTER TABLE historico_notificaciones ADD COLUMN nombre_menor VARCHAR(100);
 
 CREATE TABLE IF NOT EXISTS zonas_restringidas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
