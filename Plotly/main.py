@@ -8,6 +8,7 @@ import os
 # --- Configuración de Estilos ---
 AZUL_OSCURO = "#002b5c"  
 GRIS_TEXTO = "#546e7a" 
+ROJO_ALERTA = "#d32f2f" # Color para resaltar alarmas
 
 app = dash.Dash(__name__)
 server = app.server
@@ -16,7 +17,6 @@ server = app.server
 def get_data():
     try:
         client = bigquery.Client()
-        # Nota: Asegúrate de que tu tabla tenga lat, lon y tipo_alerta para el mapa
         query = """
             SELECT id_menor, count(*) as alertas, 
             ANY_VALUE(latitud) as lat, ANY_VALUE(longitud) as lon, ANY_VALUE(tipo_alerta) as tipo_alerta
@@ -30,7 +30,6 @@ def get_data():
         return df
     except Exception as e:
         print(f"DEBUG: Error al conectar a BigQuery: {e}")
-        # Datos de respaldo para que la app no se rompa
         return pd.DataFrame({
             "id_menor": ["M-01", "M-02", "M-03", "M-04"],
             "lat": [40.4167, 40.4200, 40.4150, 40.4180],
@@ -121,6 +120,31 @@ app.layout = html.Div(
                 html.Div(style={"backgroundColor": "#ffffff", "padding": "40px", "borderRadius": "0 0 15px 15px"}, children=[
                     html.H2("Conclusiones Clave", style={"color": AZUL_OSCURO}),
                     business_logic_card("🔎 Interpretación", "Evaluación comparativa para intervenciones preventivas.")
+                ])
+            ]),
+
+            # --- NUEVA PESTAÑA 5: ESTADO DEL SERVICIO ---
+            dcc.Tab(label="📈 Estado del Servicio", value="tab-5", children=[
+                html.Div(style={"backgroundColor": "#ffffff", "padding": "40px", "borderRadius": "0 0 15px 15px"}, children=[
+                    html.H2("Monitor de Conectividad y Alertas Activas", style={"color": AZUL_OSCURO, "fontSize": "28px"}),
+                    
+                    html.Div(style={"display": "flex", "justifyContent": "space-around", "marginTop": "20px"}, children=[
+                        # Cuadro Niños Conectados
+                        html.Div(style={"textAlign": "center", "padding": "20px", "border": f"2px solid {AZUL_OSCURO}", "borderRadius": "15px", "width": "40%"}, children=[
+                            html.H3("Niños Conectados", style={"color": GRIS_TEXTO}),
+                            html.H1(len(df_global["id_menor"].unique()), style={"color": AZUL_OSCURO, "fontSize": "60px"})
+                        ]),
+                        # Cuadro Alarmas Activas
+                        html.Div(style={"textAlign": "center", "padding": "20px", "border": f"2px solid {ROJO_ALERTA}", "borderRadius": "15px", "width": "40%"}, children=[
+                            html.H3("Alarmas Activas", style={"color": GRIS_TEXTO}),
+                            html.H1(df_global["alertas"].sum(), style={"color": ROJO_ALERTA, "fontSize": "60px"})
+                        ])
+                    ]),
+                    
+                    html.Br(),
+                    business_logic_card("🧠 Lógica de Monitorización", 
+                        "**Lógica:** Conteo dinámico de identificadores únicos para la conectividad y suma total de registros para las alarmas.\n\n"
+                        "**Propósito:** Visualizar en tiempo real el volumen de usuarios y el nivel de criticidad en el sistema.")
                 ])
             ])
         ])
