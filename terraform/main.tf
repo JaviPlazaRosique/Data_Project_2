@@ -15,6 +15,7 @@ resource "google_project_service" "activar_servicios_proyecto" {
 resource "google_compute_network" "vpc_monitoreo_menores" {
   name = "vpc-monitoreo-menores"
   project = var.project_id
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
@@ -37,6 +38,7 @@ resource "google_storage_bucket" "bucket-menores" {
   location      = var.region
   force_destroy = false
   storage_class = "STANDARD"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_storage_bucket" "dataflow-temp" {
@@ -44,10 +46,12 @@ resource "google_storage_bucket" "dataflow-temp" {
   location      = var.region
   force_destroy = false
   storage_class = "STANDARD"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_pubsub_topic" "topic-ubicacion" {
   name = "topic-ubicacion"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_pubsub_subscription" "topic-ubicacion-sub" {
@@ -57,6 +61,7 @@ resource "google_pubsub_subscription" "topic-ubicacion-sub" {
 
 resource "google_pubsub_topic" "topic-eventos" {
   name = "topic-eventos"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_pubsub_subscription" "topic-eventos-sub" {
@@ -67,6 +72,7 @@ resource "google_pubsub_subscription" "topic-eventos-sub" {
 
 resource "google_pubsub_topic" "topic-user-notification" {
   name = "user-notification"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_sql_database_instance" "postgres_instance" {
@@ -92,7 +98,10 @@ resource "google_sql_database_instance" "postgres_instance" {
   lifecycle {
     prevent_destroy = true
   }
-  depends_on = [google_service_networking_connection.private_vpc_connection]
+  depends_on = [
+    google_service_networking_connection.private_vpc_connection,
+    google_project_service.activar_servicios_proyecto
+  ]
 }
 
 resource "random_password" "contraseña-monitoreo-menores" {
@@ -126,6 +135,7 @@ resource "google_bigquery_dataset" "monitoreo_dataset" {
   dataset_id = "monitoreo_dataset"
   project = var.project_id
   location = var.region
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_bigquery_table" "menores" {
@@ -248,6 +258,7 @@ resource "google_firestore_database" "database" {
   name        = "(default)"
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_firestore_document" "schema_ubicaciones" {
@@ -278,6 +289,7 @@ resource "google_artifact_registry_repository" "repo_artifact" {
   location = var.region
   repository_id = "repo-data-project-2"
   format = "DOCKER"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 locals {
@@ -372,6 +384,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
     }
   }
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "local_file" "env_generadores" {
@@ -457,7 +470,8 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     }
   }
   depends_on = [
-    docker_registry_image.imagen_web_push
+    docker_registry_image.imagen_web_push,
+    google_project_service.activar_servicios_proyecto
   ]
 }
 
@@ -475,6 +489,7 @@ resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   private_connectivity {
     private_connection = google_datastream_private_connection.conexion_privada_datastream.id
   }
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_datastream_connection_profile" "conexion_destino_datastream" {
@@ -484,6 +499,7 @@ resource "google_datastream_connection_profile" "conexion_destino_datastream" {
   bigquery_profile {
     
   }
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_datastream_private_connection" "conexion_privada_datastream" {
@@ -494,6 +510,7 @@ resource "google_datastream_private_connection" "conexion_privada_datastream" {
     vpc = google_compute_network.vpc_monitoreo_menores.id
     subnet = "10.1.0.0/29"
   }
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_datastream_stream" "sql_bq" {
