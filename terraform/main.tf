@@ -80,7 +80,7 @@ resource "google_sql_database_instance" "postgres_instance" {
     disk_size = 100
 
     ip_configuration {
-      ipv4_enabled    = true
+      ipv4_enabled    = false
       private_network = google_compute_network.vpc_monitoreo_menores.id
     }
   }
@@ -403,3 +403,4 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     docker_registry_image.imagen_web_push
   ]
 }
+
