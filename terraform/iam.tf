@@ -71,3 +71,17 @@ resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
     role = "roles/run.invoker"
     member = "allUsers"
 }
+
+resource "google_project_iam_member" "roles_cicd" {
+  for_each = toset([
+    "roles/dataflow.admin",          # Para crear/detener jobs de Dataflow
+    "roles/dataflow.worker",         # Para que el robot pueda operar
+    "roles/storage.admin",           # Para subir el código al bucket temp
+    "roles/bigquery.admin",          # Para gestionar las tablas si fuera necesario
+    "roles/iam.serviceAccountUser"   # Permiso crítico para actuar en nombre de la cuenta de Dataflow
+  ])
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
+}

@@ -403,3 +403,22 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     docker_registry_image.imagen_web_push
   ]
 }
+
+resource "google_service_account" "github_actions_sa" {
+  account_id   = "github-actions-deployer"
+  display_name = "Service Account para GitHub Actions CI/CD"
+  project      = var.project_id
+}
+
+resource "google_service_account_key" "github_sa_key" {
+  service_account_id = google_service_account.github_actions_sa.name
+}
+
+output "cicd_service_account_key" {
+  description = "Contenido de la llave JSON para copiar a GitHub Secrets"
+  value       = google_service_account_key.github_sa_key.private_key
+  sensitive   = true
+}
+
+# Ejecutar este código para ver la key: terraform output -raw cicd_service_account_key | ConvertFrom-Base64
+# En el repositorio del proyecto: Settings > Secrets > Actions > New Repository Secret con el nombre GCP_SA_KEY
