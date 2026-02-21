@@ -5,14 +5,12 @@ import plotly.express as px
 from google.cloud import bigquery
 import os
 
-# Get project ID from environment or use default
 project_id = os.environ.get("ID_PROYECTO", "gemma-12")
 port = int(os.environ.get("PORT", "8080"))
 
-# Initialize Dash app first (so it starts even if BigQuery query fails)
 app = dash.Dash(__name__)
 
-# Try to fetch data from BigQuery
+
 try:
     client = bigquery.Client(project=project_id)
     
@@ -29,7 +27,6 @@ try:
     
 except Exception as e:
     print(f"Error fetching data from BigQuery: {e}")
-    # Create a placeholder figure if query fails
     fig = {
         "data": [],
         "layout": {
@@ -39,7 +36,6 @@ except Exception as e:
         }
     }
 
-# App layout
 app.layout = html.Div([
     html.H1("Dashboard Alertas Niños"),
     html.P("Número de alertas por niño"),

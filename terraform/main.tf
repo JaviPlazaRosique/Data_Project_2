@@ -408,6 +408,8 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     docker_registry_image.imagen_web_push
   ]
 }
+
+#Creamos el repo nuevo del dashboard de plotly
 resource "google_artifact_registry_repository" "repo_dashboard" {
   project       = var.project_id
   location      = var.region
@@ -415,22 +417,26 @@ resource "google_artifact_registry_repository" "repo_dashboard" {
   format        = "DOCKER"
 }
 
+#Creamos la imagen del repo_dashboard
 resource "docker_image" "dashboard" {
   name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_dashboard.name}/plotly-dashboard:latest"
 
   build {
-    context    = "${path.module}/../Looker"   # carpeta donde está tu Dockerfile y app.py
+    context    = "${path.module}/../Plotly"   # carpeta donde está tu Dockerfile y main.py (Plotly)
     dockerfile = "Dockerfile"
   }
 }
 
+#subimos la imagen del repo
 resource "docker_registry_image" "dashboard_push" {
   name          = docker_image.dashboard.name
   keep_remotely = true
   depends_on    = [google_artifact_registry_repository.repo_dashboard]
 }
+
+#creamos la cloud run del dashboard
 resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
-  name                = "dashboard-plotly-v4" # Cambia el nombre una vez más para limpiar el rastro
+  name                = "dashboard-plotly-v4" 
   location            = var.region
   deletion_protection = false
 
