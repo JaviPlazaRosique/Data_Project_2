@@ -650,7 +650,7 @@ resource "google_compute_instance" "proxy_datastream" {
 
 resource "time_sleep" "esperar_instalacion_proxy" {
   depends_on = [google_compute_instance.proxy_datastream]
-  create_duration = "120s"
+  create_duration = "300s"
 }
 
 resource "time_sleep" "esperar_arranque_api" {
