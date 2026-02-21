@@ -412,21 +412,8 @@ resource "null_resource" "lanzar_dataflow" {
 
   provisioner "local-exec" {
     command = <<EOT
-      python ../Dataflow/pipeline.py \
-        --project_id="${var.project_id}" \
-        --ubicacion_pubsub_subscription_name="${google_pubsub_topic.topic-ubicacion.name}-sub" \
-        --bigquery_dataset="${google_bigquery_dataset.monitoreo_dataset.dataset_id}" \
-        --historico_notificaciones_bigquery_table="${google_bigquery_table.historico_notificaciones.table_id}" \
-        --db_host="${google_sql_database_instance.postgres_instance.private_ip_address}" \
-        --db_user="${google_sql_user.postgres_user.name}" \
-        --db_pass="${random_password.contraseña-monitoreo-menores.result}" \
-        --runner="DataflowRunner" \
-        --region="${var.region}" \
-        --network="${google_compute_network.vpc_monitoreo_menores.name}" \
-        --subnetwork="regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name}" \
-        --job_name="pipeline-monitoreo" \
-        --requirements_file="../Dataflow/requirements.txt"
-    EOT
+python ../Dataflow/pipeline.py --project_id="${var.project_id}" --ubicacion_pubsub_subscription_name="${google_pubsub_topic.topic-ubicacion.name}-sub" --bigquery_dataset="${google_bigquery_dataset.monitoreo_dataset.dataset_id}" --historico_notificaciones_bigquery_table="${google_bigquery_table.historico_notificaciones.table_id}" --db_host="${google_sql_database_instance.postgres_instance.private_ip_address}" --db_user="${google_sql_user.postgres_user.name}" --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner="DataflowRunner" --region="${var.region}" --network="${google_compute_network.vpc_monitoreo_menores.name}" --subnetwork="regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name}" --job_name="pipeline-monitoreo" --requirements_file="../Dataflow/requirements.txt"
+EOT
   }
 
   depends_on = [
