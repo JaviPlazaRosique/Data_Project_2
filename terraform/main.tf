@@ -429,7 +429,7 @@ resource "docker_registry_image" "dashboard_push" {
   depends_on    = [google_artifact_registry_repository.repo_dashboard]
 }
 resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
-  name                = "plotly-dashboard-v2"  # <--- Cambia este nombre
+  name                = "dashboard-cloud-run-v3" # Cambiamos el nombre para evitar el bloqueo
   location            = var.region
   deletion_protection = false
 
@@ -445,10 +445,10 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
       }
     }
   }
+
   traffic {
-    percent = 100
-    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-  }
+    percent         = 100
+    type = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"  }
 
   depends_on = [docker_registry_image.dashboard_push]
 }
