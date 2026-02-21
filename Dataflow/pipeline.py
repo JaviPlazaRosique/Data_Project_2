@@ -74,8 +74,8 @@ class LeerZonasPostgres(beam.DoFn):
                 for fila in filas:
                     zona_dict = {
                         'id_menor': fila[0],
-                        'nombre_menor': fila[1], # El nombre del niño (de la tabla menores)
-                        'nombre_zona': fila[2],  # El nombre de la zona 
+                        'nombre_menor': fila[1], 
+                        'nombre_zona': fila[2],  
                         'latitud': float(fila[3]),
                         'longitud': float(fila[4]),
                         'radio_peligro': float(fila[5]),
@@ -197,8 +197,6 @@ class GuardarEnFirestore(beam.DoFn):
         id_menor = element['id_menor']
         nombre_menor = element['nombre_menor']
         estado = element['estado']
-
-        # Usamos id_menor para el documento. Así, si hay dos "Pepitos", cada uno tendrá su propio documento basado en su ID único.
 
         # ubicacion
         doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
