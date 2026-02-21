@@ -417,16 +417,26 @@ resource "google_artifact_registry_repository" "repo_dashboard" {
   format        = "DOCKER"
 }
 
-#Creamos la imagen del repo_dashboard
 resource "docker_image" "dashboard" {
-  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_dashboard.name}/plotly-dashboard:latest"
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_dashboard.name}/plotly-dashboard:${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
   build {
-    context    = "${path.module}/../Plotly"   # carpeta donde está tu Dockerfile y main.py (Plotly)
+    context    = "${path.module}/../Plotly"
     dockerfile = "Dockerfile"
+    no_cache   = true
+    # Añade esto para inyectar el cambio al Dockerfile
+    build_args = {
+      CACHEBUST = timestamp()
+    }
+  }
+
+  triggers = {
+    dir_sha = sha1(join("", [
+      for f in fileset("${path.module}/../Plotly", "**") :
+      filesha1("${path.module}/../Plotly/${f}")
+    ]))
   }
 }
-
 #subimos la imagen del repo
 resource "docker_registry_image" "dashboard_push" {
   name          = docker_image.dashboard.name
@@ -436,15 +446,19 @@ resource "docker_registry_image" "dashboard_push" {
 
 #creamos la cloud run del dashboard
 resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
-  name                = "dashboard-plotly-v4" 
+  name                = "dashboard-plotly" 
   location            = var.region
   deletion_protection = false
 
   template {
     containers {
-      image = docker_registry_image.dashboard_push.name 
+      image = "${docker_image.dashboard.name}@${docker_registry_image.dashboard_push.sha256_digest}"
       ports {
         container_port = 8080
+      }
+      env {
+        name  = "LAST_DEPLOY"
+        value = timestamp() 
       }
       env {
         name  = "ID_PROYECTO"
