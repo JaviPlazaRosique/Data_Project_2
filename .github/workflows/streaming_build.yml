@@ -35,7 +35,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install apache-beam[gcp] psycopg2-binary geopy google-cloud-firestore
+          pip install -r requirements.txt
+
 
       - name: Authenticate to Google Cloud
         uses: 'google-github-actions/auth@v1'
