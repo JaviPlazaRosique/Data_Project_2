@@ -150,7 +150,7 @@ class ZonasRestringidas(beam.DoFn):
         yield element    
 
 class EnviarNotificaciones(beam.DoFn):
-    """Clase para enviar notificaciones al padre o al menor dependiendo del estado detectado."""
+    """Clase para enviar notificaciones al padre dependiendo del estado detectado."""
     def process(self, element):
         estado = element.get('estado')
 
