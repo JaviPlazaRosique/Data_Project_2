@@ -1,5 +1,5 @@
 resource "google_service_account" "api_cloud_run" {
-  account_id   = "api-cloud-run-sa"
+  account_id = "api-cloud-run-sa"
   display_name = "Service Account para Cloud Run"
 }
 
@@ -11,20 +11,20 @@ resource "google_project_iam_member" "api_cloud_run_roles" {
     "roles/logging.logWriter",
   ])
   project = var.project_id
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.api_cloud_run.email}"
+  role = each.key
+  member = "serviceAccount:${google_service_account.api_cloud_run.email}"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "uso_api_cloud_run" {
   location = google_cloud_run_v2_service.api_cloud_run.location
-  name     = google_cloud_run_v2_service.api_cloud_run.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  name = google_cloud_run_v2_service.api_cloud_run.name
+  role = "roles/run.invoker"
+  member = "allUsers"
 }
 
 
 resource "google_service_account" "dataflow_sa" {
-  account_id   = "dataflow-worker-sa"
+  account_id = "dataflow-worker-sa"
   display_name = "Service Account para Dataflow Pipeline"
 }
 
@@ -42,8 +42,8 @@ resource "google_project_iam_member" "dataflow_permissions" {
   ])
 
   project = var.project_id
-  role    = each.key
-  member  = "serviceAccount:${google_service_account.dataflow_sa.email}"
+  role = each.key
+  member = "serviceAccount:${google_service_account.dataflow_sa.email}"
 }
 
 resource "google_service_account" "web_cloud_run" {
