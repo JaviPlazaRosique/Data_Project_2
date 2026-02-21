@@ -86,6 +86,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   }
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [settings[0].ip_configuration]
   }
   depends_on = [google_service_networking_connection.private_vpc_connection]
 }
@@ -429,7 +430,7 @@ resource "docker_registry_image" "dashboard_push" {
   depends_on    = [google_artifact_registry_repository.repo_dashboard]
 }
 resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
-  name                = "dashboard-cloud-run-v3" # Cambiamos el nombre para evitar el bloqueo
+  name                = "dashboard-plotly-v4" # Cambia el nombre una vez más para limpiar el rastro
   location            = var.region
   deletion_protection = false
 
@@ -445,11 +446,6 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
       }
     }
   }
-
-  traffic {
-    percent         = 100
-    type = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"  }
-
   depends_on = [docker_registry_image.dashboard_push]
 }
 
