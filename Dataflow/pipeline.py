@@ -301,10 +301,6 @@ def run():
                 required=True,
                 help='BigQuery dataset name.')
     parser.add_argument(
-                '--tabla_zonas',
-                required=True,
-                help='Tabla BigQuery con zonas restringidas.')
-    parser.add_argument(
                 '--historico_notificaciones_bigquery_table',
                 required=True,
                 help='Tabla BigQuery para historico de notificaciones.')
