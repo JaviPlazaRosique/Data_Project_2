@@ -108,17 +108,20 @@ class ZonasRestringidas(beam.DoFn):
             lat_menor=float(element.get('latitud'))
             long_menor=float(element.get('longitud'))
             lista_zonas = element.get('lista_zonas', [])
+            id_actual = element.get('id_menor')
 
         except Exception as e:
             logging.error(f" ERROR procesando coordenadas: {e} | Dato recibido: {element}")
             return
         
         estado = "OK" 
-        element['nombre_menor'] = "el menor"
+        nombre_real = next((z.get('nombre_menor') for z in lista_zonas if z.get('id_menor') == id_actual), "el menor")
+        element['nombre_menor'] = nombre_real
+
 
         for zona in lista_zonas:
             if id_menor == zona.get('id_menor'): 
-                element['nombre_menor'] = zona.get('nombre', 'el menor')
+                element['nombre_menor'] = zona.get('nombre_menor')
                 lat_zona=float(zona.get('latitud'))
                 long_zona=float(zona.get('longitud'))
                 radio_peligro = float(zona.get('radio_peligro'))
@@ -253,7 +256,7 @@ class GuardarAlertasPostgres(beam.DoFn):
         if estado in ["PELIGRO", "ADVERTENCIA"]:
             
             id_menor = element.get('id_menor')
-            nombre = element.get('nombre_menor')
+            nombre_menor = element.get('nombre_menor')
             latitud = element.get('latitud')
             longitud = element.get('longitud')
             fecha = element.get('fecha')
@@ -264,7 +267,7 @@ class GuardarAlertasPostgres(beam.DoFn):
                     INSERT INTO historico_notificaciones (id_menor, nombre_menor, latitud, longitud, estado, fecha) 
                     VALUES (%s, %s, %s, %s, %s, %s);
                 """
-                cursor.execute(query, (id_menor, nombre, latitud, longitud, estado, fecha))
+                cursor.execute(query, (id_menor, nombre_menor, latitud, longitud, estado, fecha))
                 self.conn.commit() 
                 cursor.close()
                 
