@@ -424,7 +424,7 @@ resource "null_resource" "lanzar_dataflow" {
         --region="${var.region}" \
         --network="${google_compute_network.vpc_monitoreo_menores.name}" \
         --subnetwork="regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name}" \
-        --job_name="pipeline-tf-privado" \
+        --job_name="pipeline-monitoreo" \
         --requirements_file="../Dataflow/requirements.txt"
     EOT
   }
