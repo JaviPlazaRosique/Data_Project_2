@@ -370,6 +370,10 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
         name = "CONTR_USUARIO_DATASTREAM"
         value = random_password.contr_usuario_datastream.result
       }
+      env {
+        name = "PYTHONUNBUFFERED"
+        value = "1"
+      }
     }
     vpc_access {
       network_interfaces {
@@ -480,7 +484,7 @@ resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   location = var.region
   connection_profile_id = "conexion-sql-origen-datastream"
   postgresql_profile {
-    hostname = google_sql_database_instance.postgres_instance.private_ip_address
+    hostname = google_compute_instance.proxy_datastream.network_interface[0].network_ip
     port = 5432
     username = google_sql_user.postgres_user.name
     password = google_sql_user.postgres_user.password
@@ -489,7 +493,10 @@ resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   private_connectivity {
     private_connection = google_datastream_private_connection.conexion_privada_datastream.id
   }
-  depends_on = [google_project_service.activar_servicios_proyecto]
+  depends_on = [
+    google_project_service.activar_servicios_proyecto,
+    time_sleep.esperar_instalacion_proxy
+  ]
 }
 
 resource "google_datastream_connection_profile" "conexion_destino_datastream" {
@@ -508,7 +515,7 @@ resource "google_datastream_private_connection" "conexion_privada_datastream" {
   private_connection_id = "conexion-psc-datastream"
   vpc_peering_config {
     vpc = google_compute_network.vpc_monitoreo_menores.id
-    subnet = "10.1.0.0/29"
+    subnet = "10.10.0.0/29"
   }
   depends_on = [google_project_service.activar_servicios_proyecto]
 }
@@ -561,8 +568,74 @@ resource "google_datastream_stream" "sql_bq" {
     destination_connection_profile = google_datastream_connection_profile.conexion_destino_datastream.id
     bigquery_destination_config {
       single_target_dataset {
-        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
+        dataset_id = "${var.project_id}:${google_bigquery_dataset.monitoreo_dataset.dataset_id}"
       }
     }
   }
+  depends_on = [time_sleep.esperar_arranque_api]
+}
+
+resource "google_compute_firewall" "permitir_datastream_proxy" {
+  name = "permitir-datastream-proxy"
+  network = google_compute_network.vpc_monitoreo_menores.id
+  allow {
+    protocol = "tcp"
+    ports = ["5432"]
+  }
+  source_ranges = ["10.10.0.0/29"] 
+}
+
+data "google_compute_image" "debian" {
+  family = "debian-12"
+  project = "debian-cloud"
+}
+
+resource "google_compute_instance" "proxy_datastream" {
+  name = "proxy-datastream-cloudsql"
+  machine_type = "e2-micro"
+  zone = "${var.region}-a" 
+
+  boot_disk {
+    initialize_params {
+      image = data.google_compute_image.debian.id
+    }
+  }
+  network_interface {
+    network = google_compute_network.vpc_monitoreo_menores.id
+    access_config {}
+  }
+  metadata_startup_script = <<-EOF
+    #! /bin/bash
+    apt-get update
+    apt-get install -y haproxy
+    
+    cat <<EOT > /etc/haproxy/haproxy.cfg
+    global
+        daemon
+        maxconn 256
+    defaults
+        mode tcp
+        timeout connect 5000ms
+        timeout client 50000ms
+        timeout server 50000ms
+    frontend postgres_in
+        bind *:5432
+        default_backend postgres_out
+    backend postgres_out
+        server cloudsql ${google_sql_database_instance.postgres_instance.private_ip_address}:5432 check
+    EOT
+    
+    systemctl restart haproxy
+  EOF
+  depends_on = [google_compute_network.vpc_monitoreo_menores]
+}
+
+resource "time_sleep" "esperar_instalacion_proxy" {
+  depends_on = [google_compute_instance.proxy_datastream]
+  create_duration = "120s"
+}
+
+resource "time_sleep" "esperar_arranque_api" {
+  depends_on = [google_cloud_run_v2_service.api_cloud_run]
+  create_duration = "60s"
 }
