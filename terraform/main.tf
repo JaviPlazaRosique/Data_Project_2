@@ -153,7 +153,7 @@ EOF
       referenced_table {
         project_id = var.project_id
         dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-        table_id = google_bigquery_table.adultos.id
+        table_id = google_bigquery_table.adultos.table_id
       }
       column_references {
         referencing_column = "id_adulto"
@@ -544,7 +544,7 @@ resource "google_datastream_stream" "sql_bq" {
     destination_connection_profile = google_datastream_connection_profile.conexion_destino_datastream.id
     bigquery_destination_config {
       single_target_dataset {
-        dataset_id = google_bigquery_dataset.monitoreo_dataset.id
+        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
       }
     }
   }
