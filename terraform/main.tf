@@ -15,6 +15,7 @@ resource "google_project_service" "activar_servicios_proyecto" {
 resource "google_compute_network" "vpc_monitoreo_menores" {
   name = "vpc-monitoreo-menores"
   project = var.project_id
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
@@ -22,6 +23,7 @@ resource "google_compute_global_address" "rango_ip_monitoreo_menores" {
   purpose = "VPC_PEERING"
   address_type = "INTERNAL"
   network = google_compute_network.vpc_monitoreo_menores.id
+  address = "10.0.0.0"
   prefix_length = 16
 }
 
@@ -36,6 +38,7 @@ resource "google_storage_bucket" "bucket-menores" {
   location      = var.region
   force_destroy = false
   storage_class = "STANDARD"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_storage_bucket" "dataflow-temp" {
@@ -43,10 +46,12 @@ resource "google_storage_bucket" "dataflow-temp" {
   location      = var.region
   force_destroy = false
   storage_class = "STANDARD"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_pubsub_topic" "topic-ubicacion" {
   name = "topic-ubicacion"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_pubsub_subscription" "topic-ubicacion-sub" {
@@ -56,6 +61,7 @@ resource "google_pubsub_subscription" "topic-ubicacion-sub" {
 
 resource "google_pubsub_topic" "topic-eventos" {
   name = "topic-eventos"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_pubsub_subscription" "topic-eventos-sub" {
@@ -66,6 +72,7 @@ resource "google_pubsub_subscription" "topic-eventos-sub" {
 
 resource "google_pubsub_topic" "topic-user-notification" {
   name = "user-notification"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_sql_database_instance" "postgres_instance" {
@@ -83,11 +90,18 @@ resource "google_sql_database_instance" "postgres_instance" {
       ipv4_enabled    = false
       private_network = google_compute_network.vpc_monitoreo_menores.id
     }
+    database_flags {
+      name = "cloudsql.logical_decoding"
+      value = "on"
+    }
   }
   lifecycle {
     prevent_destroy = true
   }
-  depends_on = [google_service_networking_connection.private_vpc_connection]
+  depends_on = [
+    google_service_networking_connection.private_vpc_connection,
+    google_project_service.activar_servicios_proyecto
+  ]
 }
 
 resource "random_password" "contraseña-monitoreo-menores" {
@@ -97,6 +111,11 @@ resource "random_password" "contraseña-monitoreo-menores" {
 }
 
 resource "random_password" "api_key" {
+  length = 32
+  special = false
+}
+
+resource "random_password" "contr_usuario_datastream" {
   length = 32
   special = false
 }
@@ -116,6 +135,7 @@ resource "google_bigquery_dataset" "monitoreo_dataset" {
   dataset_id = "monitoreo_dataset"
   project = var.project_id
   location = var.region
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_bigquery_table" "menores" {
@@ -128,14 +148,32 @@ resource "google_bigquery_table" "menores" {
   {"name": "id_adulto", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
   {"name": "apellidos", "type": "STRING"},
-  {"name": "dni", "type": "STRING"},
   {"name": "fecha_nacimiento", "type": "STRING"},
   {"name": "direccion", "type": "STRING"},
-  {"name": "url_foto", "type": "STRING"},
   {"name": "discapacidad", "type": "BOOLEAN"}
 
 ]
 EOF
+  table_constraints {
+    primary_key {
+      columns = ["id"]
+    }
+    foreign_keys {
+      name = "fk_menor_adulto"
+      referenced_table {
+        project_id = var.project_id
+        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
+        table_id = google_bigquery_table.adultos.table_id
+      }
+      column_references {
+        referencing_column = "id_adulto"
+        referenced_column = "id"
+      }
+    }
+  }
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "google_bigquery_table" "adultos" {
@@ -146,12 +184,17 @@ resource "google_bigquery_table" "adultos" {
 [
   {"name": "id", "type": "STRING"},
   {"name": "nombre", "type": "STRING"},
-  {"name": "apellidos", "type": "STRING"},
-  {"name": "telefono", "type": "STRING"},
-  {"name": "email", "type": "STRING"},
-  {"name": "ciudad", "type": "STRING"}
+  {"name": "apellidos", "type": "STRING"}
 ]
 EOF
+  table_constraints {
+    primary_key {
+      columns = ["id"]
+    }
+  }
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "google_bigquery_table" "historico_notificaciones" {
@@ -173,9 +216,9 @@ resource "google_bigquery_table" "historico_notificaciones" {
 EOF
 }
 
-resource "google_bigquery_table" "zona-restringida" {
+resource "google_bigquery_table" "zonas-restringidas" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "zona-restringida"
+  table_id   = "zonas_restringidas"
 
   schema = <<EOF
 [
@@ -188,6 +231,26 @@ resource "google_bigquery_table" "zona-restringida" {
   {"name": "radio_peligro", "type": "FLOAT"}
 ]
 EOF
+  table_constraints {
+    primary_key {
+      columns = ["id"]
+    }
+    foreign_keys {
+      name = "fk_zona_menor"
+      referenced_table {
+        project_id = var.project_id
+        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
+        table_id = google_bigquery_table.menores.table_id
+      }
+      column_references {
+        referencing_column = "id_menor"
+        referenced_column = "id"
+      }
+    }
+  }
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "google_firestore_database" "database" {
@@ -195,6 +258,7 @@ resource "google_firestore_database" "database" {
   name        = "(default)"
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_firestore_document" "schema_ubicaciones" {
@@ -225,6 +289,7 @@ resource "google_artifact_registry_repository" "repo_artifact" {
   location = var.region
   repository_id = "repo-data-project-2"
   format = "DOCKER"
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 locals {
@@ -301,6 +366,14 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
         name = "API_KEY"
         value = random_password.api_key.result
       }
+      env {
+        name = "CONTR_USUARIO_DATASTREAM"
+        value = random_password.contr_usuario_datastream.result
+      }
+      env {
+        name = "PYTHONUNBUFFERED"
+        value = "1"
+      }
     }
     vpc_access {
       network_interfaces {
@@ -315,6 +388,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
     }
   }
+  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "local_file" "env_generadores" {
@@ -400,6 +474,168 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
     }
   }
   depends_on = [
-    docker_registry_image.imagen_web_push
+    docker_registry_image.imagen_web_push,
+    google_project_service.activar_servicios_proyecto
   ]
+}
+
+resource "google_datastream_connection_profile" "conexion_origen_datastream" {
+  display_name = "Conexión de origen para Datastream (PostgreSQL)"
+  location = var.region
+  connection_profile_id = "conexion-sql-origen-datastream"
+  postgresql_profile {
+    hostname = google_compute_instance.proxy_datastream.network_interface[0].network_ip
+    port = 5432
+    username = google_sql_user.postgres_user.name
+    password = google_sql_user.postgres_user.password
+    database = google_sql_database.menores_db.name
+  }
+  private_connectivity {
+    private_connection = google_datastream_private_connection.conexion_privada_datastream.id
+  }
+  depends_on = [
+    google_project_service.activar_servicios_proyecto,
+    time_sleep.esperar_instalacion_proxy
+  ]
+}
+
+resource "google_datastream_connection_profile" "conexion_destino_datastream" {
+  display_name = "Conexión de destino para Datastream (BigQuery)"
+  location = var.region
+  connection_profile_id = "conexion-bq-destino-datastream"
+  bigquery_profile {
+    
+  }
+  depends_on = [google_project_service.activar_servicios_proyecto]
+}
+
+resource "google_datastream_private_connection" "conexion_privada_datastream" {
+  display_name = "Conexión privada para Datastream"
+  location = var.region
+  private_connection_id = "conexion-psc-datastream"
+  vpc_peering_config {
+    vpc = google_compute_network.vpc_monitoreo_menores.id
+    subnet = "10.10.0.0/29"
+  }
+  depends_on = [google_project_service.activar_servicios_proyecto]
+}
+
+resource "google_datastream_stream" "sql_bq" {
+  display_name = "Conexión PostgreSQL con BigQuery"
+  location = var.region
+  stream_id = "sql-bq"
+  desired_state = "RUNNING"
+  backfill_all {}
+  source_config {
+    source_connection_profile = google_datastream_connection_profile.conexion_origen_datastream.id
+    postgresql_source_config {
+      replication_slot = "datastream_slot"
+      publication = "datastream_publication"
+      include_objects {
+        postgresql_schemas {
+          schema = "public"
+          postgresql_tables {
+            table = "adultos"
+            postgresql_columns {column = "id"}
+            postgresql_columns {column = "nombre"}
+            postgresql_columns {column = "apellidos"}
+          }
+          postgresql_tables {
+            table = "menores"
+            postgresql_columns {column = "id"}
+            postgresql_columns {column = "id_adulto"}
+            postgresql_columns {column = "nombre"}
+            postgresql_columns {column = "apellidos"}
+            postgresql_columns {column = "fecha_nacimiento"}
+            postgresql_columns {column = "direccion"}
+            postgresql_columns {column = "discapacidad"}
+          }
+          postgresql_tables {
+            table = "zonas_restringidas"
+            postgresql_columns {column = "id"}
+            postgresql_columns {column = "id_menor"}
+            postgresql_columns {column = "nombre"}
+            postgresql_columns {column = "latitud"}
+            postgresql_columns {column = "longitud"}
+            postgresql_columns {column = "radio_peligro"}
+            postgresql_columns {column = "radio_advertencia"}
+          }
+        }
+      }
+    }
+  }
+  destination_config {
+    destination_connection_profile = google_datastream_connection_profile.conexion_destino_datastream.id
+    bigquery_destination_config {
+      single_target_dataset {
+        dataset_id = "${var.project_id}:${google_bigquery_dataset.monitoreo_dataset.dataset_id}"
+      }
+    }
+  }
+  depends_on = [time_sleep.esperar_arranque_api]
+}
+
+resource "google_compute_firewall" "permitir_datastream_proxy" {
+  name = "permitir-datastream-proxy"
+  network = google_compute_network.vpc_monitoreo_menores.id
+  allow {
+    protocol = "tcp"
+    ports = ["5432"]
+  }
+  source_ranges = ["10.10.0.0/29"] 
+}
+
+data "google_compute_image" "debian" {
+  family = "debian-12"
+  project = "debian-cloud"
+}
+
+resource "google_compute_instance" "proxy_datastream" {
+  name = "proxy-datastream-cloudsql"
+  machine_type = "e2-micro"
+  zone = "${var.region}-a" 
+
+  boot_disk {
+    initialize_params {
+      image = data.google_compute_image.debian.id
+    }
+  }
+  network_interface {
+    network = google_compute_network.vpc_monitoreo_menores.id
+    access_config {}
+  }
+  metadata_startup_script = <<-EOF
+    #! /bin/bash
+    apt-get update
+    apt-get install -y haproxy
+    
+    cat <<EOT > /etc/haproxy/haproxy.cfg
+    global
+        daemon
+        maxconn 256
+    defaults
+        mode tcp
+        timeout connect 5000ms
+        timeout client 50000ms
+        timeout server 50000ms
+    frontend postgres_in
+        bind *:5432
+        default_backend postgres_out
+    backend postgres_out
+        server cloudsql ${google_sql_database_instance.postgres_instance.private_ip_address}:5432 check
+    EOT
+    
+    systemctl restart haproxy
+  EOF
+  depends_on = [google_compute_network.vpc_monitoreo_menores]
+}
+
+resource "time_sleep" "esperar_instalacion_proxy" {
+  depends_on = [google_compute_instance.proxy_datastream]
+  create_duration = "120s"
+}
+
+resource "time_sleep" "esperar_arranque_api" {
+  depends_on = [google_cloud_run_v2_service.api_cloud_run]
+  create_duration = "60s"
 }
