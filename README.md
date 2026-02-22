@@ -40,7 +40,13 @@ Define los parámetros espaciales para el motor de reglas de Dataflow.
 * **Atributos**: `latitud`, `longitud`, `radio_peligro` (m) y `radio_advertencia` (m).
 * **Uso**: El pipeline realiza un JOIN dinámico con esta tabla para evaluar la seguridad de cada coordenada recibida.
 
+### 4. Histórico de Notificaciones (Tabla `historico_notificaciones`)
 
+Almacena el resultado de cada procesamiento crítico realizado por el pipeline.
+
+* **Campos**: `id_menor`, `nombre_menor`, `estado` y `fecha`.
+* **Propósito**: Alimentar la vista de "Alertas" de la aplicación web de forma rápida.
+  
 ## Tecnologías utilizadas
 
 * **Google Cloud Platform (GCP)**: Hosting de toda la infraestructura.
