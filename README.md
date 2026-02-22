@@ -20,6 +20,13 @@ La persistencia de la configuración y el estado maestro del sistema se gestiona
 
 ![Diagrama de Base de Datos](.img/relacion_tablas.png)
 
+### 1. Gestión de Usuarios (Tabla `adultos`)
+
+Representa a los tutores legales en el sistema. Es la entidad raíz para la gestión de permisos en la aplicación.
+
+* **Campos clave**: `id` (PK), `telefono` (usado para login), `email` y `nombre`.
+  
+
 ## Tecnologías utilizadas
 
 * **Google Cloud Platform (GCP)**: Hosting de toda la infraestructura.
