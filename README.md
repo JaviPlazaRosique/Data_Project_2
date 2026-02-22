@@ -94,6 +94,17 @@ Una vez iniciada la sesión, la app permite:
 * **Integración con GCS**: Las fotografías de los menores se recuperan dinámicamente desde un **Bucket de Google Cloud Storage** mediante el cliente oficial de Python.
 * **Fichas de Datos**: Visualización de información sensible (DNI, fecha de nacimiento, dirección, discapacidad) recuperada de forma segura desde Cloud SQL.
 
+### Visualización Geoespacial (Mapas)
+
+El corazón de la aplicación es su mapa interactivo, construido con la librería **Folium**:
+
+* **Capas Personalizables**: El usuario puede alternar entre vista de Callejero (OpenStreetMap), Satélite (Esri World Imagery) y Modo Oscuro (CartoDB).
+* **Representación de Zonas**: Las zonas restringidas se dibujan dinámicamente sobre el mapa:
+    * 🟡 **Círculos Amarillos**: Radios de advertencia.
+    * 🔴 **Círculos Rojos**: Radios de peligro inminente.
+* **Centrado Inteligente**: El mapa se geolocaliza automáticamente en la ciudad de residencia del menor.
+
+
 
 
 
