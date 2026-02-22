@@ -40,5 +40,16 @@ El almacenamiento de datos en la nube permite un acceso fácil y seguro a la inf
   
 * Docker Desktop (para ejecución de contenedores locales).
 
+## Despliegue de la Infraestructura
+
+Este proyecto utiliza **Terraform** para gestionar la infraestructura como código (IaC), permitiendo que todo el entorno de Google Cloud se despliegue de forma automática y consistente.
+
+### Pasos para el despliegue inicial:
+
+1. **Inicializar el entorno**: Prepara los proveedores y el backend.
+   ```bash
+   terraform init
+
+
 
 
