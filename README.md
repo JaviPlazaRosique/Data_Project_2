@@ -108,6 +108,16 @@ El pipeline de procesamiento está desarrollado en **Apache Beam** y se ejecuta 
    
 4. **Ramificación**: Los datos se envían simultáneamente a BigQuery (histórico), Firestore (alertas activas) y Postgres (para reportes de seguridad).
 
+## Clasificación de Estados
+
+El motor de reglas evalúa la distancia geodésica y clasifica el evento según la configuración de la base de datos:
+
+| Estado | Acción del Sistema |
+| :--- | :--- |
+| **OK** | Registro silencioso en BigQuery. |
+| **ADVERTENCIA** | Notificación preventiva en la App. |
+| **PELIGRO** | Alerta crítica y guardado en histórico de seguridad. |
+
 ## Interfaz de Monitoreo (Streamlit App)
 
 La plataforma incluye una aplicación web desarrollada con **Streamlit**, diseñada para que los padres y tutores puedan interactuar con el sistema de seguridad de forma intuitiva. 
