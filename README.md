@@ -70,6 +70,13 @@ La API no solo guarda datos en SQL, sino que dispara eventos en la nube:
 
 * **Google Cloud Storage**: El endpoint `/fotos_menores` procesa archivos binarios y los almacena en un bucket, devolviendo la URL pública del objeto.
 * **Google Cloud Pub/Sub**: El endpoint `/ubicaciones` serializa los datos en JSON y los publica en el tópico correspondiente, activando el flujo de streaming en Dataflow de forma inmediata.
+
+### Inicialización Automática
+
+La API está configurada para preparar el entorno en el arranque:
+
+* **Evento `startup`**: Al iniciar el servidor, la API verifica la existencia de las tablas (`adultos`, `menores`, `zonas`, `historico`) y las crea si es necesario.
+* **Extensiones SQL**: Activa automáticamente la extensión `uuid-ossp` en PostgreSQL para el manejo de identificadores únicos universales.
   
 ## Modelo de Datos Relacional (PostgreSQL)
 
