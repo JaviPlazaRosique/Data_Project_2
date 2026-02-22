@@ -1,6 +1,8 @@
-# SaveChild Guardin - Real-Time Child Monitoring System
+# SaveChild Guardian - Real-Time Child Monitoring System 📍
 
-# Sistema de Monitoreo de Menores en Tiempo Real 📍
+## Sistema de Monitoreo de Menores en Tiempo Real 
+
+### Descripción del Proyecto
 
 Este proyecto implementa una solución de streaming de datos para la seguridad infantil. Utiliza sensores de ubicación (simulados) para detectar si un menor entra en zonas restringidas, notificando a los padres y guardando un histórico en la nube. Los datos se transmiten en tiempo real, y se almacenan en una base de datos NoSQL para análisis posterior. 
 
