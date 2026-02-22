@@ -82,14 +82,17 @@ Este proyecto utiliza **Terraform** para gestionar la infraestructura como códi
 1. **Inicializar el entorno**: Prepara los proveedores y el backend.
    ```bash
    terraform init
+   ```
 
 2. **Planificar el despliegue**: Revisa los cambios que se aplicarán a la infraestructura.
    ```bash
    terraform plan
+   ```
 
 3. **Ejecutar el despliegue**: Aplica los cambios para crear los recursos en Google Cloud.
    ```bash
    terraform apply
+   ```
 
 ## Procesamiento de Datos (Dataflow Pipeline)
 
