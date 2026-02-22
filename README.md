@@ -33,7 +33,12 @@ Contiene los perfiles de los niños protegidos.
 * **Relación**: Posee una clave foránea (`id_adulto`) que vincula a cada menor con su tutor responsable.
 * **Multimedia**: Almacena la `url_foto` que referencia a los archivos en **GCS**.
 
+### 3. Zonas Restringidas (Tabla `zonas_restringidas`)
 
+Define los parámetros espaciales para el motor de reglas de Dataflow.
+
+* **Atributos**: `latitud`, `longitud`, `radio_peligro` (m) y `radio_advertencia` (m).
+* **Uso**: El pipeline realiza un JOIN dinámico con esta tabla para evaluar la seguridad de cada coordenada recibida.
 
 
 ## Tecnologías utilizadas
