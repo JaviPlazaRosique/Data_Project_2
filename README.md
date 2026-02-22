@@ -58,6 +58,20 @@ Este proyecto utiliza **Terraform** para gestionar la infraestructura como códi
    ```bash
    terraform apply
 
+## Procesamiento de Datos (Dataflow Pipeline)
+
+El pipeline de procesamiento está desarrollado en **Apache Beam** y se ejecuta de forma escalable en **Google Cloud Dataflow**. Su función principal es el enriquecimiento de datos en tiempo real.
+
+### Lógica de Procesamiento:
+
+1. **Consumo**: Lee eventos de ubicación desde Pub/Sub.
+
+2. **Enriquecimiento**: Realiza una consulta a Cloud SQL para obtener la información de las zonas restringidas asociadas al menor.
+   
+3. **Cálculo Geoespacial**: Utiliza la librería `geopy` para calcular la distancia entre la posición actual y los radios de peligro.
+   
+4. **Ramificación**: Los datos se envían simultáneamente a BigQuery (histórico), Firestore (alertas activas) y Postgres (para reportes de seguridad).
+
 
 
 
