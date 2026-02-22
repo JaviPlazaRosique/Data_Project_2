@@ -10,6 +10,10 @@ Por otra parte, se almacenan los datos en la nube utilizando una base de datos N
 
 El almacenamiento de datos en la nube permite un acceso fácil y seguro a la información, garantizando que los padres puedan revisar el historial de ubicaciones y alertas en cualquier momento. Además, el sistema está diseñado para ser escalable, permitiendo la incorporación de más sensores o funcionalidades en el futuro sin comprometer el rendimiento. 
 
+## Arquitectura:
+
+![Diagrama de Arquitectura](arquitectura.png)
+
 ## Tecnologías utilizadas:
 
 * **Google Cloud Platform (GCP)**: Hosting de toda la infraestructura.
