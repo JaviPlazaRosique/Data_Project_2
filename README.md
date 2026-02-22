@@ -86,7 +86,13 @@ La seguridad de la App incluye:
 * **Sesiones Seguras**: Uso de `st.session_state` para mantener la persistencia del usuario y limitar los intentos de acceso fallidos (máximo 3 intentos).
 * **Gestión de Perfiles**: Los padres pueden registrarse y acceder únicamente a la información de los menores vinculados a su ID de usuario.
 
+### Gestión de Menores y Multimedia
 
+Una vez iniciada la sesión, la app permite:
+
+* **Exploración de Perfiles**: Visualización de tarjetas personalizadas para cada hijo.
+* **Integración con GCS**: Las fotografías de los menores se recuperan dinámicamente desde un **Bucket de Google Cloud Storage** mediante el cliente oficial de Python.
+* **Fichas de Datos**: Visualización de información sensible (DNI, fecha de nacimiento, dirección, discapacidad) recuperada de forma segura desde Cloud SQL.
 
 
 
