@@ -24,3 +24,9 @@ provider "docker" {
     password = data.google_client_config.default.access_token
   }
 }
+
+provider "google-beta" {
+    project = var.project_id
+    region = var.region
+    user_project_override = true
+}
