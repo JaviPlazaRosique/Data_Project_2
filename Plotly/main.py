@@ -56,14 +56,31 @@ df_master, df_menores_list = generate_bq_data()
 # ==========================================================
 # 2️⃣ ESTILO CORPORATIVO (ADMIN DARK MODE)
 # ==========================================================
-FONDO_COLOR = "#111723"  
-TARJETA_COLOR = "#1E2633"  
+FONDO_COLOR = "#0F1219"       # Fondo general casi negro
+TARJETA_COLOR = "#1C222D"     # Fondo de módulos
 TEXTO_COLOR = "#FFFFFF"
-ACCENTO_COLOR = "#6684E8" 
-PALETTE = ["#6684E8", "#EF7581", "#8EEDBF", "#FFD166", "#CD71FB"]
+ACCENTO_COLOR = "#75E6DA"     # Turquesa neón del título
+PALETTE = ["#5E81AC", "#D08770", "#A3BE8C", "#B48EAD", "#EBCB8B"]
 
 app = dash.Dash(__name__)
 server = app.server
+#creamos una funciion para crear unas tarjetas con estlo kpis
+def crear_tarjeta_kpi(titulo, valor, color_borde, icono_emoji):
+    return html.Div(style={
+        "flex": "1",
+        "minWidth": "200px",
+        "backgroundColor": TARJETA_COLOR, # Fondo oscuro uniforme
+        "padding": "20px",
+        "borderRadius": "8px",
+        "borderLeft": f"5px solid {color_borde}", # La franja de color a la izquierda
+        "color": "white",
+        "boxShadow": "0 4px 15px rgba(0,0,0,0.3)",
+        "position": "relative"
+    }, children=[
+        html.Div(icono_emoji, style={"position": "absolute", "right": "15px", "top": "15px", "fontSize": "20px", "opacity": "0.6"}),
+        html.P(titulo, style={"margin": "0", "fontSize": "12px", "fontWeight": "600", "opacity": "0.7"}),
+        html.H2(valor, style={"margin": "0", "fontSize": "28px", "fontWeight": "bold"})
+    ])
 
 app.layout = html.Div(style={"backgroundColor": FONDO_COLOR, "minHeight": "100vh", "padding": "25px", "color": TEXTO_COLOR, "fontFamily": "Inter, sans-serif"}, children=[
     
@@ -84,6 +101,14 @@ app.layout = html.Div(style={"backgroundColor": FONDO_COLOR, "minHeight": "100vh
             )
         ])
     ]),
+    
+    #fila de KPIS
+    html.Div(style={"display": "flex", "gap": "20px", "marginBottom": "25px", "flexWrap": "wrap"}, children=[
+        crear_tarjeta_kpi("Niños Activos", len(df_menores_list), "#6684E8", "👦"),
+        crear_tarjeta_kpi("Adultos Registrados", "5", "#EF7581", "👥"),
+        crear_tarjeta_kpi("Alarmas Activas", f"{len(df_master[df_master['estado']=='alarma'])}", "#FFD166", "🚨"),
+        crear_tarjeta_kpi("Advertencias", "12", "#CD71FB", "⚠️"),
+    ]),
 
     # Fila de Gráficos Principales
     html.Div(style={"display": "flex", "gap": "20px", "flexWrap": "wrap"}, children=[
@@ -99,6 +124,27 @@ app.layout = html.Div(style={"backgroundColor": FONDO_COLOR, "minHeight": "100vh
             html.H5("% Impacto por Zona Restringida", style={"fontSize": "16px", "marginBottom": "20px", "opacity": "0.8"}),
             dcc.Graph(id="grafico-tarta", style={"height": "400px"})
         ])
+    ]),
+
+
+    html.Div(style={"display": "flex", "gap": "20px", "marginTop": "25px", "flexWrap": "wrap"}, children=[
+        # Lado Izquierdo: Gráfico 2026
+        html.Div(style={"flex": "2", "backgroundColor": TARJETA_COLOR, "padding": "20px", "borderRadius": "12px"}, children=[
+            html.H5("Análisis de Intensidad Mensual (2026)", style={"fontSize": "16px", "marginBottom": "20px", "opacity": "0.8"}),
+            dcc.Graph(id="grafico-2026", style={"height": "350px"}) # <--- ID CORRECTO
+        ]),
+        # Lado Derecho: Conclusiones
+        html.Div(id="contenedor-conclusiones", style={
+            "flex": "1", 
+            "backgroundColor": TARJETA_COLOR, 
+            "padding": "20px", 
+            "borderRadius": "12px",
+            "border": f"2px solid {ACCENTO_COLOR}", # Esto crea el borde turquesa
+            "boxShadow": f"0px 0px 15px {ACCENTO_COLOR}44", # Esto crea el brillo neón
+            "display": "flex", 
+            "flexDirection": "column", 
+            "gap": "15px"
+        })
     ]),
 
     # Tabla de Registro
@@ -122,7 +168,9 @@ app.layout = html.Div(style={"backgroundColor": FONDO_COLOR, "minHeight": "100vh
 @app.callback(
     [Output("grafico-tendencia", "figure"),
      Output("grafico-tarta", "figure"),
-     Output("tabla-admin", "data")],
+     Output("tabla-admin", "data"),
+     Output("grafico-2026", "figure"),           
+     Output("contenedor-conclusiones", "children")], 
     [Input("selector-menor", "value")]
 )
 def update_dashboard(selected_name): # CORREGIDO: Eliminada definición doble de función
@@ -166,24 +214,13 @@ def update_dashboard(selected_name): # CORREGIDO: Eliminada definición doble de
     )
 
     fig_trend.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)", 
+        plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(
-            title="<b>HISTÓRICO TRIMESTRAL (2025-2026)</b>", 
-            title_font=dict(color=ACCENTO_COLOR),
-            showgrid=False, 
-            categoryorder='array', 
-            categoryarray=orden_etiquetas # Forzamos el orden cronológico Feb 25 -> Feb 26
-        ),
-        yaxis=dict(
-            title="<b>VULNERACIONES</b>", 
-            title_font=dict(color=ACCENTO_COLOR),
-            gridcolor="#2A3444"
-        ),
-        margin=dict(l=20, r=20, t=10, b=20),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-
+        font=dict(color="#888EB0", size=10), # Gris tenue para ejes
+        xaxis=dict(showgrid=True, gridcolor="#2A3444", zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="#2A3444", zeroline=False),
+        margin=dict(l=40, r=20, t=20, b=40)
+)
     # 2. Gráfico de Tarta (Donut corporativo)
     zona_data = dff.groupby("zona_vulnerada").size().reset_index(name="conteo")
     fig_pie = px.pie(
@@ -198,14 +235,40 @@ def update_dashboard(selected_name): # CORREGIDO: Eliminada definición doble de
         margin=dict(l=40, r=40, t=40, b=40),
         legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5)
     )
-    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+    fig_pie.update_traces(marker=dict(colors=PALETTE))
 
+    df_2026 = dff[dff['fecha'].dt.year == 2026].copy()
+    if df_2026.empty: df_2026 = dff.tail(50) # Fallback si no hay datos de 2026
+    
+    df_2026['mes_nombre'] = df_2026['fecha'].dt.strftime('%B')
+    monthly_2026 = df_2026.groupby('mes_nombre', sort=False).size().reset_index(name='total')
+
+    fig_monthly = px.bar(monthly_2026, x='mes_nombre', y='total', text_auto=True, template="plotly_dark", color_discrete_sequence=[ACCENTO_COLOR])
+    fig_monthly.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=10, b=10))
+
+    total_2026 = len(df_2026)
+    zona_frecuente = df_2026['zona_vulnerada'].mode()[0] if not df_2026.empty else "N/A"
+    conclusiones = [
+        html.Div(style={"backgroundColor": "#2A3444", "padding": "15px", "borderRadius": "10px", "borderLeft": f"5px solid {ACCENTO_COLOR}"}, children=[
+            html.Small("VULNERACIONES 2026", style={"opacity": "0.6"}),
+            html.B(f" Total: {total_2026}", style={"display": "block", "fontSize": "18px"})
+        ]),
+        html.Div(style={"backgroundColor": "#2A3444", "padding": "15px", "borderRadius": "10px", "borderLeft": f"5px solid {PALETTE[1]}"}, children=[
+            html.Small("PUNTO CALIENTE", style={"opacity": "0.6"}),
+            html.B(zona_frecuente, style={"display": "block", "fontSize": "18px"})
+        ])
+    ]
+
+    # --- DATOS TABLA ---
+    df_tabla = dff.sort_values("fecha", ascending=False)
+    df_tabla['fecha'] = df_tabla['fecha'].dt.strftime('%Y-%m-%d')
+    
     # 3. Datos para la tabla (Convertir fechas a string)
     df_tabla = dff.sort_values("fecha", ascending=False)
     df_tabla['fecha'] = df_tabla['fecha'].dt.strftime('%Y-%m-%d')
     tabla_data = df_tabla.to_dict("records")
 
-    return fig_trend, fig_pie, tabla_data
+    return fig_trend, fig_pie, tabla_data, fig_monthly, conclusiones
 
 
 if __name__ == "__main__":
