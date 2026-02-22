@@ -78,6 +78,14 @@ La plataforma incluye una aplicación web desarrollada con **Streamlit**, diseñ
 
 La aplicación se conecta directamente a **Cloud SQL** mediante el conector de Google Cloud y recupera archivos multimedia desde **Google Cloud Storage**.
 
+### Control de Acceso y Registro
+
+La seguridad de la App incluye:
+
+* **Sistema de Login/Registro**: Validación de credenciales contra la tabla de `adultos` en PostgreSQL.
+* **Sesiones Seguras**: Uso de `st.session_state` para mantener la persistencia del usuario y limitar los intentos de acceso fallidos (máximo 3 intentos).
+* **Gestión de Perfiles**: Los padres pueden registrarse y acceder únicamente a la información de los menores vinculados a su ID de usuario.
+
 
 
 
