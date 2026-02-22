@@ -54,6 +54,10 @@ Este proyecto utiliza **Terraform** para gestionar la infraestructura como códi
    ```bash
    terraform plan
 
+3. **Ejecutar el despliegue**: Aplica los cambios para crear los recursos en Google Cloud.
+   ```bash
+   terraform apply
+
 
 
 
