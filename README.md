@@ -30,5 +30,15 @@ El almacenamiento de datos en la nube permite un acceso fácil y seguro a la inf
   
 * **Terraform**: Infraestructura como código.
 
+## Prerrequisitos
+
+* Python 3.9 o superior.
+  
+* Google Cloud SDK instalado y configurado.
+  
+* Una cuenta de servicio en GCP con permisos de Editor.
+  
+* Docker Desktop (para ejecución de contenedores locales).
+
 
 
