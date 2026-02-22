@@ -50,6 +50,10 @@ Este proyecto utiliza **Terraform** para gestionar la infraestructura como códi
    ```bash
    terraform init
 
+2. **Planificar el despliegue**: Revisa los cambios que se aplicarán a la infraestructura.
+   ```bash
+   terraform plan
+
 
 
 
