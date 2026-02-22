@@ -8,6 +8,7 @@ from google.cloud import pubsub_v1, storage
 from uuid import UUID, uuid4
 import os
 import json
+import logging
 
 proyecto_region_instancia = os.getenv("PROYECTO_REGION_INSTANCIA")
 usuario_db = os.getenv("USUARIO_DB")
@@ -17,6 +18,10 @@ id_proyecto = os.getenv("ID_PROYECTO")
 topico_ubicaciones = os.getenv("TOPICO_UBICACIONES")
 bucket_fotos = os.getenv("BUCKET_FOTOS")
 api_key_seguridad = os.getenv("API_KEY")
+contr_usuario_datastream = os.getenv("CONTR_USUARIO_DATASTREAM")
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 publisher = pubsub_v1.PublisherClient()
 topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
@@ -70,15 +75,13 @@ class ZonasRestringidas(BaseModel):
     radio_peligro: int
     radio_advertencia: int
 
-class HistoricoUbicaciones(BaseModel):
+class HistoricoNotificaciones(BaseModel):
     id: UUID = Field(default_factory = uuid4)
     id_menor: UUID
     nombre: str
     latitud: float
     longitud: float
-    radio: int
     fecha: date
-    duracion: int
     estado: str
 
 class Ubicaciones(BaseModel):
@@ -105,19 +108,25 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
 app = FastAPI(dependencies=[Depends(get_api_key)])
 
 def crear_tablas():
-    with engine.connect() as conn:
+    logger.info("Iniciando la creación y configuración de tablas en la base de datos...")
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        logger.info("Creando extensión uuid-ossp si no existe...")
         conn.execute(text("""
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
         """))
+        logger.info("Creando tabla adultos si no existe...")
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS adultos (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 nombre VARCHAR(100) NOT NULL,
                 apellidos VARCHAR(100),
                 telefono VARCHAR(20), 
-                email VARCHAR(100)
+                email VARCHAR(100),
+                ciudad VARCHAR(100),
+                clave VARCHAR(100)
             );
         """))
+        logger.info("Creando tabla menores si no existe...")
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS menores (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -131,6 +140,7 @@ def crear_tablas():
                 discapacidad BOOLEAN
             );
         """))
+        logger.info("Creando tabla zonas_restringidas si no existe...")
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS zonas_restringidas (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -142,26 +152,44 @@ def crear_tablas():
                 radio_advertencia INTEGER
             );
         """))
+        logger.info("Creando tabla historico_notificaciones si no existe...")
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS historico_ubicaciones (
+            CREATE TABLE IF NOT EXISTS historico_notificaciones (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 id_menor UUID REFERENCES menores(id),
                 latitud DOUBLE PRECISION NOT NULL,
                 longitud DOUBLE PRECISION NOT NULL,
-                radio INTEGER,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                duracion INTEGER,
                 estado VARCHAR(20)
             );
         """))
-        conn.commit()
+        logger.info("Configurando usuario de replicación y permisos...")
+        try:
+            conn.execute(text(f'ALTER USER "{usuario_db}" WITH REPLICATION;'))
+        except Exception as e:
+            logger.warning(f"No se pudo asignar el rol REPLICATION al usuario '{usuario_db}': {e}")
+        user_exists = conn.execute(text("SELECT 1 FROM pg_roles WHERE rolname = 'usuario_datastream'")).fetchone()
+        if not user_exists:
+            conn.execute(text(f"CREATE USER usuario_datastream WITH REPLICATION IN ROLE cloudsqlsuperuser LOGIN PASSWORD '{contr_usuario_datastream}';"))
+        conn.execute(text(f'GRANT CONNECT ON DATABASE "{nombre_bd}" TO usuario_datastream;'))
+        conn.execute(text("GRANT USAGE ON SCHEMA public TO usuario_datastream;"))
+        conn.execute(text("GRANT SELECT ON ALL TABLES IN SCHEMA public TO usuario_datastream;"))
+        conn.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO usuario_datastream;"))
+        logger.info("Configurando publicación y slot de replicación...")
+        pub_exists = conn.execute(text("SELECT 1 FROM pg_publication WHERE pubname = 'datastream_publication'")).fetchone()
+        if not pub_exists:
+            conn.execute(text("CREATE PUBLICATION datastream_publication FOR ALL TABLES;"))
+        slot_exists = conn.execute(text("SELECT 1 FROM pg_replication_slots WHERE slot_name = 'datastream_slot'")).fetchone()
+        if not slot_exists:
+            conn.execute(text("SELECT pg_create_logical_replication_slot('datastream_slot', 'pgoutput')"))
+    logger.info("Proceso de creación de tablas finalizado correctamente.")
 
 @app.on_event("startup")
 def startup_event():
     try:
         crear_tablas()
     except Exception as e:
-        print(f"Error creando tablas: {e}")
+        logger.error(f"Error creando tablas: {e}")
 
 def obtener_conexion():
     with engine.begin() as conexion:
@@ -214,8 +242,8 @@ async def obtener_ids_menores(db = Depends(obtener_conexion)):
 async def crear_adulto(adulto: Adultos, db = Depends(obtener_conexion)):
     try:
         consulta = text("""
-            INSERT INTO adultos (id, nombre, apellidos, telefono, email)
-            VALUES (:id, :nombre, :apellidos, :telefono, :email)
+            INSERT INTO adultos (id, nombre, apellidos, telefono, email, ciudad, clave)
+            VALUES (:id, :nombre, :apellidos, :telefono, :email, :ciudad, :clave)
         """)
 
         db.execute(consulta, adulto.model_dump())
@@ -246,22 +274,22 @@ async def crear_ubicaciones(ubicacion: Ubicaciones):
 
         future = publisher.publish(topic_path, mensaje_bytes)
 
-        mensaje_id = future.results()
+        mensaje_id = future.result()
 
         return {"mensaje": f"Ubicacion creada: {mensaje_id}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al publicar en Pub/Sub: {str(e)}")
     
-@app.post("/historico_ubicaciones", status_code = 201)
-async def crear_historico_ubicacion(ubicacion: HistoricoUbicaciones, db = Depends(obtener_conexion)):
+@app.post("/historico_notificaciones", status_code = 201)
+async def crear_historico_notificaciones(ubicacion: HistoricoNotificaciones, db = Depends(obtener_conexion)):
     try: 
         consulta = text("""
-            INSERT INTO historico_ubicaciones (id, id_menor, latitud, longitud, radio, fecha, duracion, estado)
-            VALUES (:id, :id_menor, :latitud, :longitud, :radio, :fecha, :duracion, :estado)
+            INSERT INTO historico_notificaciones (id, id_menor, latitud, longitud, fecha, estado)
+            VALUES (:id, :id_menor, :latitud, :longitud, :fecha, :estado)
         """)
 
         db.execute(consulta, ubicacion.model_dump())
 
-        return {"mensaje": "Historico de ubicación creado exitosamente"}
+        return {"mensaje": "Historico de notificaciones creado exitosamente"}
     except Exception as e: 
         raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
