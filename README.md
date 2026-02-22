@@ -14,6 +14,12 @@ El almacenamiento de datos en la nube permite un acceso fácil y seguro a la inf
 
 ![Diagrama de Arquitectura](.img/arquitectura.png)
 
+## Simulación de Datos (Generadores Synthetic)
+
+Para validar la robustez del sistema en tiempo real, hemos desarrollado una suite de **Generadores de Datos Sintéticos**. Estos scripts simulan el comportamiento de los dispositivos GPS y la actividad de la base de datos sin necesidad de hardware físico.
+
+
+
 ## Modelo de Datos Relacional (PostgreSQL)
 
 La persistencia de la configuración y el estado maestro del sistema se gestiona en **Cloud SQL**. Se ha diseñado un esquema relacional que garantiza la integridad de los datos y facilita el enriquecimiento de los mensajes en el pipeline.
