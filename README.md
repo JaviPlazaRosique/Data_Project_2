@@ -159,6 +159,14 @@ La aplicación utiliza variables de entorno para una configuración segura y fle
 * `BUCKET_FOTOS`: Nombre del bucket de GCS para los activos multimedia.
 * **IP Privada**: El conector utiliza `IPTypes.PRIVATE` para garantizar que el tráfico de datos no salga a la internet pública.
 
+## Seguridad y Privacidad
+
+* **IAM**: Uso de Cuentas de Servicio con el principio de mínimo privilegio.
+
+* **Redes**: Conexión entre App y DB mediante IP Privada y VPC Peering para evitar exposición a internet.
+
+* **Secretos**: Las credenciales sensibles se inyectan mediante GitHub Secrets y variables de entorno.
+
 
 
 
