@@ -23,8 +23,15 @@ Para validar la robustez del sistema en tiempo real, hemos desarrollado una suit
 * **Generador de Adultos**: Crea perfiles de tutores con nombres, teléfonos y correos electrónicos realistas utilizando la librería `Faker`.
 * **Generador de Menores**: Crea los perfiles infantiles y los vincula aleatoriamente a los adultos existentes, asignándoles metadatos como DNI y necesidad de asistencia especial.
 
+### 2. Generador de Zonas (Geofencing)
+
+Este script automatiza la creación de áreas de seguridad en Cloud SQL. Define un punto central (lat/lon) y establece dos radios concéntricos:
+
+* **Radio de Advertencia**: Alerta preventiva.
+* **Radio de Peligro**: Alerta crítica.
 
 
+  
 ## Modelo de Datos Relacional (PostgreSQL)
 
 La persistencia de la configuración y el estado maestro del sistema se gestiona en **Cloud SQL**. Se ha diseñado un esquema relacional que garantiza la integridad de los datos y facilita el enriquecimiento de los mensajes en el pipeline.
