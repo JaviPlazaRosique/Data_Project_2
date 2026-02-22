@@ -26,6 +26,15 @@ Representa a los tutores legales en el sistema. Es la entidad raíz para la gest
 
 * **Campos clave**: `id` (PK), `telefono` (usado para login), `email` y `nombre`.
   
+### 2. Entidad Menores (Tabla `menores`)
+
+Contiene los perfiles de los niños protegidos. 
+
+* **Relación**: Posee una clave foránea (`id_adulto`) que vincula a cada menor con su tutor responsable.
+* **Multimedia**: Almacena la `url_foto` que referencia a los archivos en **GCS**.
+
+
+
 
 ## Tecnologías utilizadas
 
