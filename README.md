@@ -10,13 +10,19 @@ Por otra parte, se almacenan los datos en la nube utilizando una base de datos N
 
 El almacenamiento de datos en la nube permite un acceso fácil y seguro a la información, garantizando que los padres puedan revisar el historial de ubicaciones y alertas en cualquier momento. Además, el sistema está diseñado para ser escalable, permitiendo la incorporación de más sensores o funcionalidades en el futuro sin comprometer el rendimiento. 
 
-## 🚀 Tecnologías utilizadas:
+## Tecnologías utilizadas:
 
 * **Google Cloud Platform (GCP)**: Hosting de toda la infraestructura.
+  
 * **Apache Beam & Dataflow**: Procesamiento de datos en streaming.
+  
 * **Pub/Sub**: Ingesta de mensajes de ubicación.
+  
 * **Cloud SQL (PostgreSQL)**: Gestión de zonas y usuarios.
+  
 * **BigQuery**: Data Warehouse para análisis histórico.
+  
 * **Firestore**: Base de datos NoSQL para alertas en tiempo real.
+  
 * **Terraform**: Infraestructura como código.
 
