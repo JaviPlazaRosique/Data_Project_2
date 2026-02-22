@@ -36,6 +36,16 @@ Es el motor principal de telemetría. Simula el movimiento de un menor enviando 
 
 * **Latencia simulada**: Emula la frecuencia de actualización de un dispositivo real.
 * **Inyección de Peligro**: Programado para generar trayectorias que crucen intencionadamente las zonas restringidas para validar la respuesta del pipeline.
+
+## API de Gestión (FastAPI)
+
+El sistema dispone de una API REST robusta construida con **FastAPI**, que actúa como capa de orquestación entre los generadores, la base de datos y los servicios de almacenamiento de Google Cloud.
+
+### Características principales:
+
+* **Validación de Datos**: Uso de `Pydantic` para garantizar la integridad de los esquemas.
+* **Inyección de Dependencias**: Gestión eficiente de conexiones a la base de datos.
+* **Escalabilidad**: Diseño asíncrono para manejar múltiples peticiones simultáneas.
   
 ## Modelo de Datos Relacional (PostgreSQL)
 
