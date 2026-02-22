@@ -46,6 +46,13 @@ El sistema dispone de una API REST robusta construida con **FastAPI**, que actú
 * **Validación de Datos**: Uso de `Pydantic` para garantizar la integridad de los esquemas.
 * **Inyección de Dependencias**: Gestión eficiente de conexiones a la base de datos.
 * **Escalabilidad**: Diseño asíncrono para manejar múltiples peticiones simultáneas.
+
+### Seguridad de la API
+
+Para proteger los endpoints de accesos no autorizados, se ha implementado un sistema de **API Key Header**:
+
+* **Middleware de Seguridad**: Todas las peticiones deben incluir una cabecera `X-API-Key`.
+* **Validación**: La API verifica la clave contra una variable de entorno segura antes de procesar cualquier operación, devolviendo un error `403 Forbidden` si la clave es incorrecta.
   
 ## Modelo de Datos Relacional (PostgreSQL)
 
