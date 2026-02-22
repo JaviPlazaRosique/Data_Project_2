@@ -30,7 +30,12 @@ Este script automatiza la creación de áreas de seguridad en Cloud SQL. Define 
 * **Radio de Advertencia**: Alerta preventiva.
 * **Radio de Peligro**: Alerta crítica.
 
+### 3. Generador de Ubicaciones GPS (Streaming)
 
+Es el motor principal de telemetría. Simula el movimiento de un menor enviando mensajes JSON a **GCP Pub/Sub** cada pocos segundos:
+
+* **Latencia simulada**: Emula la frecuencia de actualización de un dispositivo real.
+* **Inyección de Peligro**: Programado para generar trayectorias que crucen intencionadamente las zonas restringidas para validar la respuesta del pipeline.
   
 ## Modelo de Datos Relacional (PostgreSQL)
 
