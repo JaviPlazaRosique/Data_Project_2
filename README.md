@@ -12,7 +12,13 @@ El almacenamiento de datos en la nube permite un acceso fácil y seguro a la inf
 
 ## Arquitectura
 
-![Diagrama de Arquitectura](arquitectura.png)
+![Diagrama de Arquitectura](.img/arquitectura.png)
+
+## Modelo de Datos Relacional (PostgreSQL)
+
+La persistencia de la configuración y el estado maestro del sistema se gestiona en **Cloud SQL**. Se ha diseñado un esquema relacional que garantiza la integridad de los datos y facilita el enriquecimiento de los mensajes en el pipeline.
+
+![Diagrama de Base de Datos](.img/relacion_tablas.png)
 
 ## Tecnologías utilizadas
 
