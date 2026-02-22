@@ -53,6 +53,16 @@ Para proteger los endpoints de accesos no autorizados, se ha implementado un sis
 
 * **Middleware de Seguridad**: Todas las peticiones deben incluir una cabecera `X-API-Key`.
 * **Validación**: La API verifica la clave contra una variable de entorno segura antes de procesar cualquier operación, devolviendo un error `403 Forbidden` si la clave es incorrecta.
+
+### Endpoints Principales
+
+| Método | Endpoint | Descripción |
+| :--- | :--- | :--- |
+| `POST` | `/menores` | Registra un nuevo menor en el sistema. |
+| `POST` | `/fotos_menores` | Sube la imagen del menor a un Bucket de GCS. |
+| `POST` | `/ubicaciones` | Publica telemetría GPS directamente en **Pub/Sub**. |
+| `POST` | `/zonas_restringidas` | Configura geocercas para el monitoreo. |
+| `GET` | `/menores/id_direccion` | Obtiene datos básicos para la simulación. |
   
 ## Modelo de Datos Relacional (PostgreSQL)
 
