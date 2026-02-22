@@ -104,6 +104,15 @@ El corazón de la aplicación es su mapa interactivo, construido con la librerí
     * 🔴 **Círculos Rojos**: Radios de peligro inminente.
 * **Centrado Inteligente**: El mapa se geolocaliza automáticamente en la ciudad de residencia del menor.
 
+### Configuración Técnica de la App
+
+La aplicación utiliza variables de entorno para una configuración segura y flexible:
+
+* `PROYECTO_REGION_INSTANCIA`: Conexión al socket de Cloud SQL.
+* `USUARIO_DB` / `CONTR_DB`: Credenciales de acceso a PostgreSQL.
+* `BUCKET_FOTOS`: Nombre del bucket de GCS para los activos multimedia.
+* **IP Privada**: El conector utiliza `IPTypes.PRIVATE` para garantizar que el tráfico de datos no salga a la internet pública.
+
 
 
 
