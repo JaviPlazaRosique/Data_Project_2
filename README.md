@@ -63,6 +63,13 @@ Para proteger los endpoints de accesos no autorizados, se ha implementado un sis
 | `POST` | `/ubicaciones` | Publica telemetría GPS directamente en **Pub/Sub**. |
 | `POST` | `/zonas_restringidas` | Configura geocercas para el monitoreo. |
 | `GET` | `/menores/id_direccion` | Obtiene datos básicos para la simulación. |
+
+### Integración Cloud Nativa
+
+La API no solo guarda datos en SQL, sino que dispara eventos en la nube:
+
+* **Google Cloud Storage**: El endpoint `/fotos_menores` procesa archivos binarios y los almacena en un bucket, devolviendo la URL pública del objeto.
+* **Google Cloud Pub/Sub**: El endpoint `/ubicaciones` serializa los datos en JSON y los publica en el tópico correspondiente, activando el flujo de streaming en Dataflow de forma inmediata.
   
 ## Modelo de Datos Relacional (PostgreSQL)
 
