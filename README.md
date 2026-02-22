@@ -18,6 +18,11 @@ El almacenamiento de datos en la nube permite un acceso fácil y seguro a la inf
 
 Para validar la robustez del sistema en tiempo real, hemos desarrollado una suite de **Generadores de Datos Sintéticos**. Estos scripts simulan el comportamiento de los dispositivos GPS y la actividad de la base de datos sin necesidad de hardware físico.
 
+### 1. Generadores de Entidades Estáticas
+
+* **Generador de Adultos**: Crea perfiles de tutores con nombres, teléfonos y correos electrónicos realistas utilizando la librería `Faker`.
+* **Generador de Menores**: Crea los perfiles infantiles y los vincula aleatoriamente a los adultos existentes, asignándoles metadatos como DNI y necesidad de asistencia especial.
+
 
 
 ## Modelo de Datos Relacional (PostgreSQL)
