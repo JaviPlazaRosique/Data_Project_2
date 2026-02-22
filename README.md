@@ -1,6 +1,6 @@
 # SaveChild Guardian - Real-Time Child Monitoring System 📍
 
-## Descripción del Proyecto:
+## Descripción del Proyecto
 
 Este proyecto implementa una solución de streaming de datos para la seguridad infantil. Utiliza sensores de ubicación (simulados) para detectar si un menor entra en zonas restringidas, notificando a los padres y guardando un histórico en la nube. Los datos se transmiten en tiempo real, y se almacenan en una base de datos NoSQL para análisis posterior. 
 
@@ -10,11 +10,11 @@ Por otra parte, se almacenan los datos en la nube utilizando una base de datos N
 
 El almacenamiento de datos en la nube permite un acceso fácil y seguro a la información, garantizando que los padres puedan revisar el historial de ubicaciones y alertas en cualquier momento. Además, el sistema está diseñado para ser escalable, permitiendo la incorporación de más sensores o funcionalidades en el futuro sin comprometer el rendimiento. 
 
-## Arquitectura:
+## Arquitectura
 
 ![Diagrama de Arquitectura](arquitectura.png)
 
-## Tecnologías utilizadas:
+## Tecnologías utilizadas
 
 * **Google Cloud Platform (GCP)**: Hosting de toda la infraestructura.
   
@@ -71,6 +71,14 @@ El pipeline de procesamiento está desarrollado en **Apache Beam** y se ejecuta 
 3. **Cálculo Geoespacial**: Utiliza la librería `geopy` para calcular la distancia entre la posición actual y los radios de peligro.
    
 4. **Ramificación**: Los datos se envían simultáneamente a BigQuery (histórico), Firestore (alertas activas) y Postgres (para reportes de seguridad).
+
+## Interfaz de Monitoreo (Streamlit App)
+
+La plataforma incluye una aplicación web desarrollada con **Streamlit**, diseñada para que los padres y tutores puedan interactuar con el sistema de seguridad de forma intuitiva. 
+
+La aplicación se conecta directamente a **Cloud SQL** mediante el conector de Google Cloud y recupera archivos multimedia desde **Google Cloud Storage**.
+
+
 
 
 
