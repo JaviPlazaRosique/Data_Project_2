@@ -35,7 +35,7 @@ def generar_coordenadas_ciudad(direccion):
 
 if __name__ == "__main__":
     menores = obtener_id_direccion_menores()
-    nombres_zonas = ["Zona Peligrosa", "Vivienda del bully del menor", "Zona MUY Peligrosa"]
+    nombres_zonas = ["Zona Peligrosa", "Vivienda del bully del menor", "Parque", "Centro Comercial", "Obras", "Zoo", "Carcel", "Puticlub", "Casino"]
 
     if menores:
         print(f"Generando zonas restringidas para {len(menores)} menores.")

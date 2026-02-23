@@ -81,7 +81,7 @@ def generar_menor(id_adulto, apellidos, ciudad):
         "fecha_nacimiento": fake.date_of_birth(minimum_age=10, maximum_age=17).strftime("%Y-%m-%d"),
         "direccion": f"{ciudad}, Spain",
         "url_foto": f"https://storage.googleapis.com/{bucket_fotos}/{id_menor}.png",
-        "discapacidad": random.choice([True, False])
+        "discapacidad": random.random() < 0.1
     }
     
     return menor, sexo_prompt
