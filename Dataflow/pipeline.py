@@ -20,6 +20,7 @@ from datetime import datetime
 from google.cloud import firestore
 import psycopg2
 import time
+from zoneinfo import ZoneInfo
 
 def TransformacionPubSub(message):
     """Función para transformar los mensajes de Pub/Sub a un formato adecuado para el procesamiento, si falla devuelve None para no romper el proceso."""
@@ -143,7 +144,7 @@ class ZonasRestringidas(beam.DoFn):
         element['estado'] = estado
 
         if 'fecha' not in element:
-            element['fecha'] = datetime.now().isoformat()
+            element['fecha'] = datetime.now(ZoneInfo("Europe/Madrid")).isoformat()
 
         if 'lista_zonas' in element:
             del element['lista_zonas']
@@ -169,7 +170,7 @@ class EnviarNotificaciones(beam.DoFn):
                 mensaje_alerta = {
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": f"Atención: {nombre_menor} ha entrado en una zona de peligro. Por favor, verifique su ubicación.",
-                "fecha y hora": element.get('fecha', datetime.now().isoformat())
+                "fecha y hora": element.get('fecha', datetime.now(ZoneInfo("Europe/Madrid")).isoformat())
             }
             
             elif estado == "ADVERTENCIA":
@@ -177,7 +178,7 @@ class EnviarNotificaciones(beam.DoFn):
                 mensaje_alerta = {
                 "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": f"Atención: {nombre_menor} ha entrado en zona de advertencia.",
-                "fecha y hora": element.get('fecha', datetime.now().isoformat())
+                "fecha y hora": element.get('fecha', datetime.now(ZoneInfo("Europe/Madrid")).isoformat())
             }
            
             else:
