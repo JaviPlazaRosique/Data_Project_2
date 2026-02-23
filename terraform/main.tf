@@ -599,3 +599,9 @@ resource "time_sleep" "esperar_arranque_api" {
   depends_on = [google_cloud_run_v2_service.api_cloud_run]
   create_duration = "60s"
 }
+
+output "cicd_service_account_key" {
+  description = "Contenido de la llave JSON para copiar a GitHub Secrets"
+  value       = google_service_account_key.github_sa_key.private_key
+  sensitive   = true
+}
