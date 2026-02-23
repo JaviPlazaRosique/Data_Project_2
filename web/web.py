@@ -6,6 +6,7 @@ from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine, text
 import os
 from google.cloud import storage
+import uuid
 
 proyecto_region_instancia = os.getenv("PROYECTO_REGION_INSTANCIA")
 usuario_db = os.getenv("USUARIO_DB")
@@ -60,6 +61,29 @@ def registrar_adulto(nombre, apellidos, telefono, email, clave):
                 VALUES (:nombre, :apellidos, :telefono, :email, :clave)
             """)
             conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "telefono": telefono, "email": email, "clave": clave})
+        return True
+    except Exception as e:
+        return False
+
+def registrar_menor(id_adulto, nombre, apellidos, dni, fecha_nacimiento, direccion, discapacidad, archivo_foto):
+    try:
+        new_id = str(uuid.uuid4())
+        url_foto = ""
+        
+        if archivo_foto:
+            blob = bucket.blob(f"{new_id}.png")
+            blob.upload_from_file(archivo_foto, content_type=archivo_foto.type)
+            url_foto = f"https://storage.googleapis.com/{bucket_fotos}/{new_id}.png"
+            
+        with engine.begin() as conn:
+            consulta = text("""
+                INSERT INTO menores (id, id_adulto, nombre, apellidos, dni, fecha_nacimiento, direccion, url_foto, discapacidad)
+                VALUES (:id, :id_adulto, :nombre, :apellidos, :dni, :fecha_nacimiento, :direccion, :url_foto, :discapacidad)
+            """)
+            conn.execute(consulta, {
+                "id": new_id, "id_adulto": id_adulto, "nombre": nombre, "apellidos": apellidos, "dni": dni, 
+                "fecha_nacimiento": fecha_nacimiento, "direccion": direccion, "url_foto": url_foto, "discapacidad": discapacidad
+            })
         return True
     except Exception as e:
         return False
@@ -144,26 +168,62 @@ else:
     if "selected_child" not in st.session_state:
         st.session_state.selected_child = None
 
-    menores = obtener_menores(st.session_state.usuario.id)
+    if "adding_child" not in st.session_state:
+        st.session_state.adding_child = False
 
-    if not menores:
-        st.warning("Este usuario no tiene hijos.")
-    elif st.session_state.selected_child is None:
-        st.markdown("<h2 style='text-align: center;'>Mis Hijos</h2>", unsafe_allow_html=True)
-        cols = st.columns(2)
-        for idx, menor in enumerate(menores):
-            with cols[idx % 2]:
-                try:
-                    nombre_archivo = menor.url_foto.split("/")[-1]
-                    blob = bucket.blob(nombre_archivo)
-                    datos_imagen = blob.download_as_bytes()
-                    st.image(datos_imagen, use_container_width=True)
-                except Exception as e:
-                    st.error(f"Error cargando foto")
-                
-                if st.button(menor.nombre, key=f"btn_{menor.id}", use_container_width=True):
-                    st.session_state.selected_child = menor
+    if st.session_state.adding_child:
+        st.markdown("<h2 style='text-align: center;'>Registrar Nuevo Menor</h2>", unsafe_allow_html=True)
+        if st.button("← Volver"):
+            st.session_state.adding_child = False
+            st.rerun()
+
+        with st.form("form_alta_menor"):
+            nombre = st.text_input("Nombre")
+            apellidos = st.text_input("Apellidos")
+            dni = st.text_input("DNI")
+            fecha_nacimiento = st.date_input("Fecha de Nacimiento")
+            direccion = st.text_input("Dirección")
+            discapacidad = st.checkbox("¿Tiene discapacidad?")
+            foto = st.file_uploader("Foto del menor", type=["png", "jpg", "jpeg"])
+            
+            submit_nuevo_menor = st.form_submit_button("Guardar")
+            
+            if submit_nuevo_menor:
+                if registrar_menor(st.session_state.usuario.id, nombre, apellidos, dni, fecha_nacimiento, direccion, discapacidad, foto):
+                    st.success("Menor registrado correctamente")
+                    st.session_state.adding_child = False
                     st.rerun()
+                else:
+                    st.error("Error al registrar el menor")
+
+    elif st.session_state.selected_child is None:
+        menores = obtener_menores(st.session_state.usuario.id)
+        
+        col_tit, col_btn = st.columns([3, 1])
+        with col_tit:
+            st.markdown("<h2 style='text-align: center;'>Mis Hijos</h2>", unsafe_allow_html=True)
+        with col_btn:
+            if st.button("➕ Añadir Menor"):
+                st.session_state.adding_child = True
+                st.rerun()
+
+        if not menores:
+            st.warning("Este usuario no tiene hijos.")
+        else:
+            cols = st.columns(2)
+            for idx, menor in enumerate(menores):
+                with cols[idx % 2]:
+                    try:
+                        nombre_archivo = menor.url_foto.split("/")[-1]
+                        blob = bucket.blob(nombre_archivo)
+                        datos_imagen = blob.download_as_bytes()
+                        st.image(datos_imagen, use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Error cargando foto")
+                    
+                    if st.button(menor.nombre, key=f"btn_{menor.id}", use_container_width=True):
+                        st.session_state.selected_child = menor
+                        st.rerun()
     else:
         menor = st.session_state.selected_child
         if st.button("← Volver"):
