@@ -24,7 +24,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 publisher = pubsub_v1.PublisherClient()
-topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
+if topico_ubicaciones and topico_ubicaciones.startswith("projects/"):
+    topic_path = topico_ubicaciones
+else:
+    topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
 storage_client = storage.Client()
 bucket = storage_client.bucket(bucket_fotos)
 
@@ -76,15 +79,10 @@ class ZonasRestringidas(BaseModel):
     radio_advertencia: int
 
 class Ubicaciones(BaseModel):
-    user_id: str
+    id_menor: str
     timestamp: str
-    latitude: float
-    longitude: float
-    node_id: int
-    street_name: str
-    road_type: str
-    poi_name: str
-    poi_type: str
+    latitud: float
+    longitud: float
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 

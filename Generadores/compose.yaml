@@ -1,11 +1,11 @@
 services:
-  personas:
-    build: 
-      context: ./Personas 
-      dockerfile: Dockerfile
-    image: generador_personas:latest
-    env_file:
-      - .env
+  # personas:
+  #   build: 
+  #     context: ./Personas 
+  #     dockerfile: Dockerfile
+  #   image: generador_personas:latest
+  #   env_file:
+  #     - .env
   ubicaciones:
     build: 
       context: ./Ubicaciones 
@@ -13,16 +13,16 @@ services:
     image: generador_ubicaciones:latest
     env_file:
       - .env
-    depends_on:
-      zonas_restringidas:
-        condition: service_completed_successfully
-  zonas_restringidas:
-    build: 
-      context: ./ZonasRestringidas 
-      dockerfile: Dockerfile
-    image: geneador_zonas_restringidas:latest
-    env_file:
-      - .env
-    depends_on:
-      personas:
-        condition: service_completed_successfully
+  #   depends_on:
+  #     zonas_restringidas:
+  #       condition: service_completed_successfully
+  # zonas_restringidas:
+  #   build: 
+  #     context: ./ZonasRestringidas 
+  #     dockerfile: Dockerfile
+  #   image: geneador_zonas_restringidas:latest
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     personas:
+  #       condition: service_completed_successfully

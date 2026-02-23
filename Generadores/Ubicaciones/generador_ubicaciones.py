@@ -12,15 +12,10 @@ class MandarDatoAPI(PersonMovementGenerator):
     def write_element(self, position, filename, mode='a'):
         try:
             ubicacion = {
-                "user_id": str(position['user_id']),
+                "id_menor": str(position['user_id']),
                 "timestamp": position['timestamp'],
-                "latitude": float(position['latitude']),
-                "longitude": float(position['longitude']),
-                "node_id": int(position['node_id']) if position.get('node_id') is not None else 0,
-                "street_name": str(position.get('street_name') or ''),
-                "road_type": str(position.get('road_type') or ''),
-                "poi_name": str(position.get('poi_name') or ''),
-                "poi_type": str(position.get('poi_type') or '')
+                "latitud": float(position['latitude']),
+                "longitud": float(position['longitude'])
             }
             response = requests.post(f"{url_api}/ubicaciones", json=ubicacion, headers={"X-API-Key": api_key})
             if response.status_code >= 400:

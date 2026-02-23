@@ -386,6 +386,7 @@ resource "null_resource" "lanzar_dataflow" {
     google_project_service.activar_servicios_proyecto,
   ]
 }
+
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   display_name = "Conexión de origen para Datastream (PostgreSQL)"
   location = var.region
