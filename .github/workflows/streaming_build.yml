@@ -3,7 +3,7 @@ name: Dataflow Streaming Build and Deploy
 on:
   push:
     branches:
-      - main  # Se activa automáticamente al subir cambios a la rama principal
+      - main 
     paths:
       - 'Dataflow/**'
       - '.github/workflows/streaming_build.yml'
@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # Indicamos que por defecto trabaje dentro de la carpeta Dataflow
     defaults:
       run:
         working-directory: ./Dataflow
