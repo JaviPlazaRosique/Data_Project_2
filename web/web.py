@@ -301,6 +301,7 @@ else:
             
             @st.fragment(run_every=5)
             def mostrar_mapa():
+                capa_mapa = st.radio("Capa del mapa", ["Callejero", "Satélite", "Oscuro"], horizontal=True)
                 ubicacion = obtener_ubicacion_menor(menor.id)
                 
                 lat_map, lon_map = 39.4699, -0.3763 
@@ -325,20 +326,20 @@ else:
                     
                 m = folium.Map(location=[lat_map, lon_map], zoom_start=zoom_map, tiles=None)
                 
-                folium.TileLayer("OpenStreetMap", name="Callejero").add_to(m)
-                
-                folium.TileLayer(
-                    tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                    attr='Esri',
-                    name='Satélite'
-                ).add_to(m)
-
-                folium.TileLayer(
-                    tiles='cartodbdark_matter',
-                    name='Modo Oscuro'
-                ).add_to(m)
-
-                folium.LayerControl().add_to(m)
+                if capa_mapa == "Callejero":
+                    folium.TileLayer("OpenStreetMap", name="Callejero").add_to(m)
+                elif capa_mapa == "Satélite":
+                    folium.TileLayer(
+                        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                        attr='Esri',
+                        name='Satélite'
+                    ).add_to(m)
+                elif capa_mapa == "Oscuro":
+                    folium.TileLayer(
+                        tiles='cartodbdark_matter',
+                        attr='CartoDB',
+                        name='Modo Oscuro'
+                    ).add_to(m)
 
                 if ubicacion:
                     estado = ubicacion.get('estado', 'OK')
