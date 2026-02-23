@@ -5,11 +5,10 @@ import os
 import plotly.express as px
 from google.cloud import bigquery
 
-# ---- CONFIGURACIÓN BQ ----
-PROJECT_ID = "gemma-12" 
+
+PROJECT_ID = os.getenv("PROJECT_ID")
 client = bigquery.Client(project=PROJECT_ID)
 
-# ---- ESTILOS ----
 dark_theme = {
     'background': '#0f0f0f',
     'paper': "#1e1e1e",
@@ -54,7 +53,6 @@ info_box_style = {
     'border': f'1px solid {dark_theme["accent"]}'
 }
 
-# ---- FUNCIONES DE DATOS ----
 def ejecutar_query(query):
     try:
         return client.query(query).to_dataframe()
@@ -112,7 +110,6 @@ def obtener_tendencia_2026(id_nino="ALL"):
     """
     return ejecutar_query(query)
 
-# ---- APP DASH ----
 app = dash.Dash(__name__)
 server = app.server 
 
@@ -123,7 +120,6 @@ app.layout = html.Div(style={'backgroundColor': dark_theme['background'], 'color
         html.P("PANEL DE CONTROL ADMINISTRATIVO", style={'color': dark_theme['accent'], 'letterSpacing': '5px', 'fontWeight': '300'})
     ], style={'marginBottom': '50px'}),
 
-    # 1. KPIs
     html.Div(style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'marginBottom': '40px'}, children=[
         html.Div([html.P("ADULTOS"), html.H2(id="kpi-adultos")], style=card_style),
         html.Div([html.P("NIÑOS TOTALES"), html.H2(id="kpi-ninos")], style=card_style),
@@ -132,14 +128,12 @@ app.layout = html.Div(style={'backgroundColor': dark_theme['background'], 'color
         html.Div([html.P("ADVERTENCIAS"), html.H2(id="kpi-advertencias", style={'color': dark_theme['warning']})], style=card_style),
     ]),
 
-    # 5. FICHA DETALLADA (Movida arriba para mejor flujo de uso)
     html.Div(style={'backgroundColor': dark_theme['paper'], 'padding': '30px', 'borderRadius': '15px', 'marginBottom': '40px'}, children=[
         html.H3("Ficha de Seguridad Individual", style=section_title_style),
         dcc.Dropdown(id='selector-detalle', placeholder="Buscar niño...", style={'color': '#000'}),
         html.Div(id='ficha-nino', style={'display': 'grid', 'gridTemplateColumns': 'repeat(auto-fit, minmax(200px, 1fr))', 'gap': '20px', 'marginTop': '20px'})
     ]),
     
-    # 2. RANKINGS (LADO A LADO)
     html.Div(style={'display': 'flex', 'flexDirection': 'row', 'gap': '20px', 'marginBottom': '40px'}, children=[
         html.Div(style={'flex': '1', 'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px'}, children=[
             html.H3("Ranking de Peligros Críticos", style=section_title_style),
@@ -153,7 +147,6 @@ app.layout = html.Div(style={'backgroundColor': dark_theme['background'], 'color
         ]),
     ]),
 
-    # 3. TARTAS (LADO A LADO)
     html.Div(style={'display': 'flex', 'flexDirection': 'row', 'gap': '20px', 'marginBottom': '40px'}, children=[
         html.Div(style={'flex': '1', 'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px'}, children=[
             html.H3("Zonas de Peligro Frecuentes", style=section_title_style),
@@ -165,7 +158,6 @@ app.layout = html.Div(style={'backgroundColor': dark_theme['background'], 'color
         ]),
     ]),
 
-    # 4. TENDENCIA 2026 (ANCHO COMPLETO)
     html.Div(style={'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px', 'marginBottom': '40px'}, children=[
         html.H3("Evolución de Incidentes - Año 2026", style=section_title_style),
         dcc.Graph(id='grafico-tendencia-2026', config={'displayModeBar': False}),

@@ -1,9 +1,9 @@
-#terraform {
-  #backend "gcs" {
-    #bucket  = "tfstate_data_project_2_jamagece"
-    #prefix  = "terraform/state" 
-  #}
-#}
+terraform {
+  backend "gcs" {
+    bucket  = "tfstate-data-project-2-jamagece"
+    prefix  = "terraform/state" 
+  }
+}
 
 resource "google_project_service" "activar_servicios_proyecto" {
   for_each = toset(var.servicios_gcp)
@@ -57,22 +57,6 @@ resource "google_pubsub_topic" "topic-ubicacion" {
 resource "google_pubsub_subscription" "topic-ubicacion-sub" {
   name  = "${google_pubsub_topic.topic-ubicacion.name}-sub"
   topic = google_pubsub_topic.topic-ubicacion.name
-}
-
-resource "google_pubsub_topic" "topic-eventos" {
-  name = "topic-eventos"
-  depends_on = [google_project_service.activar_servicios_proyecto]
-}
-
-resource "google_pubsub_subscription" "topic-eventos-sub" {
-  name  = "${google_pubsub_topic.topic-eventos.name}-sub"
-  topic = google_pubsub_topic.topic-eventos.name
-}
-
-
-resource "google_pubsub_topic" "topic-user-notification" {
-  name = "user-notification"
-  depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
 resource "google_sql_database_instance" "postgres_instance" {
@@ -139,65 +123,6 @@ resource "google_bigquery_dataset" "monitoreo_dataset" {
   depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
-resource "google_bigquery_table" "menores" {
-  dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id = "menores"
-
-  schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},
-  {"name": "id_adulto", "type": "STRING"},
-  {"name": "nombre", "type": "STRING"},
-  {"name": "apellidos", "type": "STRING"},
-  {"name": "fecha_nacimiento", "type": "STRING"},
-  {"name": "direccion", "type": "STRING"},
-  {"name": "discapacidad", "type": "BOOLEAN"}
-
-]
-EOF
-  table_constraints {
-    primary_key {
-      columns = ["id"]
-    }
-    foreign_keys {
-      name = "fk_menor_adulto"
-      referenced_table {
-        project_id = var.project_id
-        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-        table_id = google_bigquery_table.adultos.table_id
-      }
-      column_references {
-        referencing_column = "id_adulto"
-        referenced_column = "id"
-      }
-    }
-  }
-  lifecycle {
-    ignore_changes = [schema]
-  }
-}
-
-resource "google_bigquery_table" "adultos" {
-  dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "adultos"
-
-  schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},
-  {"name": "nombre", "type": "STRING"},
-  {"name": "apellidos", "type": "STRING"}
-]
-EOF
-  table_constraints {
-    primary_key {
-      columns = ["id"]
-    }
-  }
-  lifecycle {
-    ignore_changes = [schema]
-  }
-}
-
 resource "google_bigquery_table" "historico_notificaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
   table_id   = "historico_notificaciones"
@@ -215,43 +140,6 @@ resource "google_bigquery_table" "historico_notificaciones" {
   {"name": "estado", "type": "STRING"}
 ]
 EOF
-}
-
-resource "google_bigquery_table" "zonas-restringidas" {
-  dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "zonas_restringidas"
-
-  schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},
-  {"name": "id_menor", "type": "STRING"},
-  {"name": "nombre", "type": "STRING"},
-  {"name": "latitud", "type": "FLOAT"},
-  {"name": "longitud", "type": "FLOAT"},  
-  {"name": "radio_advertencia", "type": "FLOAT"},
-  {"name": "radio_peligro", "type": "FLOAT"}
-]
-EOF
-  table_constraints {
-    primary_key {
-      columns = ["id"]
-    }
-    foreign_keys {
-      name = "fk_zona_menor"
-      referenced_table {
-        project_id = var.project_id
-        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-        table_id = google_bigquery_table.menores.table_id
-      }
-      column_references {
-        referencing_column = "id_menor"
-        referenced_column = "id"
-      }
-    }
-  }
-  lifecycle {
-    ignore_changes = [schema]
-  }
 }
 
 resource "google_firestore_database" "database" {
@@ -296,6 +184,7 @@ resource "google_artifact_registry_repository" "repo_artifact" {
 locals {
   api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
   web_hash = sha1(join("", [for f in fileset("${path.module}/../web", "**") : filesha1("${path.module}/../web/${f}")]))
+  dashboard_hash = sha1(join("", [for f in fileset("${path.module}/../Plotly", "**") : filesha1("${path.module}/../Plotly/${f}")]))
 }
 
 resource "docker_image" "imagen_api" {
@@ -480,84 +369,76 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   ]
 }
 
-#Creamos el repo nuevo del dashboard de plotly
-resource "google_artifact_registry_repository" "repo_dashboard" {
-  project       = var.project_id
-  location      = var.region
-  repository_id = var.artifact_repo_dashboard
-  format        = "DOCKER"
-}
-
-resource "docker_image" "dashboard" {
-  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_dashboard.name}/plotly-dashboard:${formatdate("YYYYMMDDhhmmss", timestamp())}"
-
+resource "docker_image" "imagen_dashboard" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/dashboard:${local.dashboard_hash}"
   build {
-    context    = "${path.module}/../Plotly"
+    context = "../Plotly/"
     dockerfile = "Dockerfile"
-    no_cache   = true
-    # Añade esto para inyectar el cambio al Dockerfile
-    build_args = {
-      CACHEBUST = timestamp()
-    }
-  }
-
-  triggers = {
-    dir_sha = sha1(join("", [
-      for f in fileset("${path.module}/../Plotly", "**") :
-      filesha1("${path.module}/../Plotly/${f}")
-    ]))
   }
 }
-#subimos la imagen del repo
-resource "docker_registry_image" "dashboard_push" {
-  name          = docker_image.dashboard.name
+
+resource "docker_registry_image" "imagen_dashboard_push" {
+  name = docker_image.imagen_dashboard.name
   keep_remotely = true
-  depends_on    = [google_artifact_registry_repository.repo_dashboard]
 }
 
-#creamos la cloud run del dashboard
 resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
-  name                = "dashboard-plotly" 
-  location            = var.region
+  name = "dashboard-cloud-run"
+  location = var.region
   deletion_protection = false
-
   template {
+    service_account = google_service_account.dashboard_cloud_run.email
     containers {
-      image = "${docker_image.dashboard.name}@${docker_registry_image.dashboard_push.sha256_digest}"
+      image = docker_registry_image.imagen_dashboard_push.name
       ports {
         container_port = 8080
       }
-      env {
-        name  = "LAST_DEPLOY"
-        value = timestamp() 
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds = 5
+        period_seconds = 10
+        failure_threshold = 24
+        tcp_socket {
+          port = 5000
+        }
       }
       env {
-        name  = "ID_PROYECTO"
+        name = "PROJECT_ID"
         value = var.project_id
       }
     }
+    vpc_access {
+      network_interfaces {
+        network = google_compute_network.vpc_monitoreo_menores.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
   }
-  depends_on = [docker_registry_image.dashboard_push]
-}
-
-resource "null_resource" "lanzar_dataflow" {
-  triggers = {
-    password = random_password.contraseña-monitoreo-menores.result
-    db_host  = google_sql_database_instance.postgres_instance.private_ip_address
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
-    EOT
-  }
-
   depends_on = [
-    google_sql_user.postgres_user,
-    google_sql_database.menores_db,
-    google_service_networking_connection.private_vpc_connection
+    docker_registry_image.imagen_dashboard_push,
+    google_project_service.activar_servicios_proyecto
   ]
 }
+
+
+# resource "null_resource" "lanzar_dataflow" {
+#   triggers = {
+#     password = random_password.contraseña-monitoreo-menores.result
+#     db_host  = google_sql_database_instance.postgres_instance.private_ip_address
+#   }
+
+#   provisioner "local-exec" {
+#     command = <<EOT
+#     python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
+#     EOT
+#   }
+
+#   depends_on = [
+#     google_sql_user.postgres_user,
+#     google_sql_database.menores_db,
+#     google_service_networking_connection.private_vpc_connection
+#   ]
+# }
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   display_name = "Conexión de origen para Datastream (PostgreSQL)"
   location = var.region

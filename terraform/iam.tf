@@ -72,13 +72,28 @@ resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
     member = "allUsers"
 }
 
-#Es para dar acceso público a la url del dashhh 
+resource "google_service_account" "dashboard_cloud_run" {
+  account_id   = "dashboard-cloud-run-sa"
+  display_name = "Service Account para Cloud Run Dashboard"
+}
+
+resource "google_project_iam_member" "dashboard_cloud_run_roles" {
+  for_each = toset([
+    "roles/bigquery.jobUser",
+    "roles/bigquery.dataViewer"
+  ])
+  project = var.project_id
+  role = each.key
+  member= "serviceAccount:${google_service_account.dashboard_cloud_run.email}"
+}
+
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   location = google_cloud_run_v2_service.dashboard_cloud_run.location
-  name     = google_cloud_run_v2_service.dashboard_cloud_run.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  name = google_cloud_run_v2_service.dashboard_cloud_run.name
+  role = "roles/run.invoker"
+  member = "allUsers"
 } 
+
 resource "google_project_service_identity" "datastream_sa" {
   provider = google-beta
   project = var.project_id
