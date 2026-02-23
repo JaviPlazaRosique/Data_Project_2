@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket  = "tfstate_data_project_2_jamagece"
+    bucket  = "tfstate-data-project-2-jamagece"
     prefix  = "terraform/state" 
   }
 }
