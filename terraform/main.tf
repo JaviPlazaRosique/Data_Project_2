@@ -59,22 +59,6 @@ resource "google_pubsub_subscription" "topic-ubicacion-sub" {
   topic = google_pubsub_topic.topic-ubicacion.name
 }
 
-resource "google_pubsub_topic" "topic-eventos" {
-  name = "topic-eventos"
-  depends_on = [google_project_service.activar_servicios_proyecto]
-}
-
-resource "google_pubsub_subscription" "topic-eventos-sub" {
-  name  = "${google_pubsub_topic.topic-eventos.name}-sub"
-  topic = google_pubsub_topic.topic-eventos.name
-}
-
-
-resource "google_pubsub_topic" "topic-user-notification" {
-  name = "user-notification"
-  depends_on = [google_project_service.activar_servicios_proyecto]
-}
-
 resource "google_sql_database_instance" "postgres_instance" {
   name = "monitoreo-menores"
   region = var.region
@@ -138,65 +122,6 @@ resource "google_bigquery_dataset" "monitoreo_dataset" {
   depends_on = [google_project_service.activar_servicios_proyecto]
 }
 
-resource "google_bigquery_table" "menores" {
-  dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id = "menores"
-
-  schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},
-  {"name": "id_adulto", "type": "STRING"},
-  {"name": "nombre", "type": "STRING"},
-  {"name": "apellidos", "type": "STRING"},
-  {"name": "fecha_nacimiento", "type": "STRING"},
-  {"name": "direccion", "type": "STRING"},
-  {"name": "discapacidad", "type": "BOOLEAN"}
-
-]
-EOF
-  table_constraints {
-    primary_key {
-      columns = ["id"]
-    }
-    foreign_keys {
-      name = "fk_menor_adulto"
-      referenced_table {
-        project_id = var.project_id
-        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-        table_id = google_bigquery_table.adultos.table_id
-      }
-      column_references {
-        referencing_column = "id_adulto"
-        referenced_column = "id"
-      }
-    }
-  }
-  lifecycle {
-    ignore_changes = [schema]
-  }
-}
-
-resource "google_bigquery_table" "adultos" {
-  dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "adultos"
-
-  schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},
-  {"name": "nombre", "type": "STRING"},
-  {"name": "apellidos", "type": "STRING"}
-]
-EOF
-  table_constraints {
-    primary_key {
-      columns = ["id"]
-    }
-  }
-  lifecycle {
-    ignore_changes = [schema]
-  }
-}
-
 resource "google_bigquery_table" "historico_notificaciones" {
   dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
   table_id   = "historico_notificaciones"
@@ -214,43 +139,6 @@ resource "google_bigquery_table" "historico_notificaciones" {
   {"name": "estado", "type": "STRING"}
 ]
 EOF
-}
-
-resource "google_bigquery_table" "zonas-restringidas" {
-  dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-  table_id   = "zonas_restringidas"
-
-  schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},
-  {"name": "id_menor", "type": "STRING"},
-  {"name": "nombre", "type": "STRING"},
-  {"name": "latitud", "type": "FLOAT"},
-  {"name": "longitud", "type": "FLOAT"},  
-  {"name": "radio_advertencia", "type": "FLOAT"},
-  {"name": "radio_peligro", "type": "FLOAT"}
-]
-EOF
-  table_constraints {
-    primary_key {
-      columns = ["id"]
-    }
-    foreign_keys {
-      name = "fk_zona_menor"
-      referenced_table {
-        project_id = var.project_id
-        dataset_id = google_bigquery_dataset.monitoreo_dataset.dataset_id
-        table_id = google_bigquery_table.menores.table_id
-      }
-      column_references {
-        referencing_column = "id_menor"
-        referenced_column = "id"
-      }
-    }
-  }
-  lifecycle {
-    ignore_changes = [schema]
-  }
 }
 
 resource "google_firestore_database" "database" {
@@ -356,7 +244,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       env {
         name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.id
+        value = google_pubsub_topic.topic-ubicacion.name
       }
       env {
         name = "BUCKET_FOTOS"
@@ -487,16 +375,18 @@ resource "null_resource" "lanzar_dataflow" {
 
   provisioner "local-exec" {
     command = <<EOT
-    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
+    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region_df} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region_df}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
     EOT
   }
 
   depends_on = [
     google_sql_user.postgres_user,
     google_sql_database.menores_db,
-    google_service_networking_connection.private_vpc_connection
+    google_service_networking_connection.private_vpc_connection,
+    google_project_service.activar_servicios_proyecto,
   ]
 }
+
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   display_name = "Conexión de origen para Datastream (PostgreSQL)"
   location = var.region
