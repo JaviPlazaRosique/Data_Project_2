@@ -168,13 +168,13 @@ El pipeline de procesamiento está desarrollado en **Apache Beam** y se ejecuta 
 
 ### Lógica de Procesamiento:
 
-1. **Consumo**: Lee eventos de ubicación desde Pub/Sub.
-
-2. **Enriquecimiento**: Realiza una consulta a Cloud SQL para obtener la información de las zonas restringidas asociadas al menor.
-   
-3. **Cálculo Geoespacial**: Utiliza la librería `geopy` para calcular la distancia entre la posición actual y los radios de peligro.
-   
-4. **Ramificación**: Los datos se envían simultáneamente a BigQuery (histórico y análisis), Firestore (alertas activas) y Postgres (para almacenamiento).
+1. **Ingesta y Windowing**: Consumo de eventos desde Pub/Sub en streaming aplicando ventanas de tiempo fijas (*Fixed Windows* de 10 segundos). Esto permite deduplicar señales GPS ruidosas y conservar únicamente la lectura más reciente por menor (`Latest.PerKey()`), optimizando el procesamiento.
+2. **Enriquecimiento Optimizado (Caché local)**: Las zonas restringidas se extraen de Cloud SQL y se mantienen en memoria del *worker*, refrescándose cada 5 minutos. Esto minimiza la latencia y evita la saturación de la base de datos por consultas continuas.
+3. **Cálculo Geoespacial**: Uso de la librería `geopy` para determinar la distancia geodésica exacta entre la posición del menor y los radios de las zonas.
+4. **Ramificación y Micro-batching**: El flujo de datos se divide para alimentar distintos sumideros simultáneamente:
+   * **BigQuery**: Inserción en streaming para el registro histórico y analítico.
+   * **Firestore**: Actualización de documentos (NoSQL) para reflejar alertas inmediatas en la App de los padres.
+   * **PostgreSQL**: Inserción del estado de peligro y advertencia, evitando el estado OK. 
 
 ## Clasificación de Estados
 
