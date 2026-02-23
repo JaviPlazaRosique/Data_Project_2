@@ -35,3 +35,9 @@ variable "servicios_gcp" {
     "dataflow.googleapis.com"
   ]
 }
+
+variable "artifact_repo_dashboard" {
+  description = "Nombre del repositorio Docker para dashboards Plotly"
+  type        = string
+  default     = "repo-dashboard-plotly"
+}

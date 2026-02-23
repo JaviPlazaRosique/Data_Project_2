@@ -81,6 +81,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   }
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [settings[0].ip_configuration]
   }
   depends_on = [
     google_service_networking_connection.private_vpc_connection,
@@ -183,6 +184,7 @@ resource "google_artifact_registry_repository" "repo_artifact" {
 locals {
   api_hash = sha1(join("", [for f in fileset("${path.module}/../api", "**") : filesha1("${path.module}/../api/${f}")]))
   web_hash = sha1(join("", [for f in fileset("${path.module}/../web", "**") : filesha1("${path.module}/../web/${f}")]))
+  dashboard_hash = sha1(join("", [for f in fileset("${path.module}/../Plotly", "**") : filesha1("${path.module}/../Plotly/${f}")]))
 }
 
 resource "docker_image" "imagen_api" {
@@ -367,6 +369,57 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   ]
 }
 
+resource "docker_image" "imagen_dashboard" {
+  name = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo_artifact.name}/dashboard:${local.dashboard_hash}"
+  build {
+    context = "../Plotly/"
+    dockerfile = "Dockerfile"
+  }
+}
+
+resource "docker_registry_image" "imagen_dashboard_push" {
+  name = docker_image.imagen_dashboard.name
+  keep_remotely = true
+}
+
+resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
+  name = "dashboard-cloud-run"
+  location = var.region
+  deletion_protection = false
+  template {
+    service_account = google_service_account.dashboard_cloud_run.email
+    containers {
+      image = docker_registry_image.imagen_dashboard_push.name
+      ports {
+        container_port = 8080
+      }
+      startup_probe {
+        initial_delay_seconds = 10
+        timeout_seconds = 5
+        period_seconds = 10
+        failure_threshold = 24
+        tcp_socket {
+          port = 8080
+        }
+      }
+      env {
+        name = "PROJECT_ID"
+        value = var.project_id
+      }
+    }
+    vpc_access {
+      network_interfaces {
+        network = google_compute_network.vpc_monitoreo_menores.id
+      }
+      egress = "PRIVATE_RANGES_ONLY"
+    }
+  }
+  depends_on = [
+    docker_registry_image.imagen_dashboard_push,
+    google_project_service.activar_servicios_proyecto
+  ]
+}
+
 resource "null_resource" "lanzar_dataflow" {
   triggers = {
     password = random_password.contraseña-monitoreo-menores.result
@@ -375,15 +428,14 @@ resource "null_resource" "lanzar_dataflow" {
 
   provisioner "local-exec" {
     command = <<EOT
-    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region_df} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region_df}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
+    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
     EOT
   }
 
   depends_on = [
     google_sql_user.postgres_user,
     google_sql_database.menores_db,
-    google_service_networking_connection.private_vpc_connection,
-    google_project_service.activar_servicios_proyecto,
+    google_service_networking_connection.private_vpc_connection
   ]
 }
 
@@ -550,6 +602,6 @@ resource "time_sleep" "esperar_arranque_api" {
 
 output "cicd_service_account_key" {
   description = "Contenido de la llave JSON para copiar a GitHub Secrets"
-  value       = google_service_account_key.github_sa_key.private_key
-  sensitive   = true
+  value = base64decode(google_service_account_key.github_sa_key.private_key)
+  sensitive = true
 }
