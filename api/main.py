@@ -24,7 +24,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 publisher = pubsub_v1.PublisherClient()
-topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
+if topico_ubicaciones and topico_ubicaciones.startswith("projects/"):
+    topic_path = topico_ubicaciones
+else:
+    topic_path = publisher.topic_path(id_proyecto, topico_ubicaciones)
 storage_client = storage.Client()
 bucket = storage_client.bucket(bucket_fotos)
 
@@ -75,25 +78,11 @@ class ZonasRestringidas(BaseModel):
     radio_peligro: int
     radio_advertencia: int
 
-class HistoricoNotificaciones(BaseModel):
-    id: UUID = Field(default_factory = uuid4)
-    id_menor: UUID
-    nombre: str
+class Ubicaciones(BaseModel):
+    id_menor: str
+    timestamp: str
     latitud: float
     longitud: float
-    fecha: date
-    estado: str
-
-class Ubicaciones(BaseModel):
-    user_id: str
-    timestamp: str
-    latitude: float
-    longitude: float
-    node_id: int
-    street_name: str
-    road_type: str
-    poi_name: str
-    poi_type: str
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
@@ -157,6 +146,7 @@ def crear_tablas():
             CREATE TABLE IF NOT EXISTS historico_notificaciones (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 id_menor UUID REFERENCES menores(id),
+                nombre_menor VARCHAR(100),
                 latitud DOUBLE PRECISION NOT NULL,
                 longitud DOUBLE PRECISION NOT NULL,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -279,17 +269,3 @@ async def crear_ubicaciones(ubicacion: Ubicaciones):
         return {"mensaje": f"Ubicacion creada: {mensaje_id}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al publicar en Pub/Sub: {str(e)}")
-    
-@app.post("/historico_notificaciones", status_code = 201)
-async def crear_historico_notificaciones(ubicacion: HistoricoNotificaciones, db = Depends(obtener_conexion)):
-    try: 
-        consulta = text("""
-            INSERT INTO historico_notificaciones (id, id_menor, latitud, longitud, fecha, estado)
-            VALUES (:id, :id_menor, :latitud, :longitud, :fecha, :estado)
-        """)
-
-        db.execute(consulta, ubicacion.model_dump())
-
-        return {"mensaje": "Historico de notificaciones creado exitosamente"}
-    except Exception as e: 
-        raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
