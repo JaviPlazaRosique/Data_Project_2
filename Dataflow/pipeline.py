@@ -6,12 +6,9 @@ En caso de que el menor entre a una zona de advertenciatanto como si entra en zo
 se le enviará una notificación al padre.
 
 """
-# A. Librerias Apache Beam 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import combiners
-
-# B. Librerias Python 
 import argparse
 import logging
 import json
@@ -222,7 +219,7 @@ class GuardarEnFirestore(beam.DoFn):
 
             if estado == "PELIGRO":
                     mensaje = f"¡Alerta! {nombre_menor} ha entrado en una zona prohibida."
-            else: # ADVERTENCIA
+            else: 
                     mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
