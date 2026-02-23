@@ -75,15 +75,6 @@ class ZonasRestringidas(BaseModel):
     radio_peligro: int
     radio_advertencia: int
 
-class HistoricoNotificaciones(BaseModel):
-    id: UUID = Field(default_factory = uuid4)
-    id_menor: UUID
-    nombre_menor: str
-    latitud: float
-    longitud: float
-    fecha: date
-    estado: str
-
 class Ubicaciones(BaseModel):
     user_id: str
     timestamp: str
@@ -280,17 +271,3 @@ async def crear_ubicaciones(ubicacion: Ubicaciones):
         return {"mensaje": f"Ubicacion creada: {mensaje_id}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al publicar en Pub/Sub: {str(e)}")
-    
-@app.post("/historico_notificaciones", status_code = 201)
-async def crear_historico_notificaciones(ubicacion: HistoricoNotificaciones, db = Depends(obtener_conexion)):
-    try: 
-        consulta = text("""
-            INSERT INTO historico_notificaciones (id, id_menor, nombre_menor, latitud, longitud, fecha, estado)
-            VALUES (:id, :id_menor, :nombre_menor, :latitud, :longitud, :fecha, :estado)
-        """)
-
-        db.execute(consulta, ubicacion.model_dump())
-
-        return {"mensaje": "Historico de notificaciones creado exitosamente"}
-    except Exception as e: 
-        raise HTTPException(status_code = 500, detail = f"Error al insertar: {str(e)}")
