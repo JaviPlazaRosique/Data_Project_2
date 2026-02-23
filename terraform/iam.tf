@@ -72,6 +72,30 @@ resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
     member = "allUsers"
 }
 
+resource "google_service_account" "github_actions_sa" {
+  account_id   = "github-actions-deployer"
+  display_name = "Service Account para GitHub Actions CI/CD"
+  project      = var.project_id
+}
+
+resource "google_service_account_key" "github_sa_key" {
+  service_account_id = google_service_account.github_actions_sa.name
+}
+
+resource "google_project_iam_member" "roles_cicd" {
+  for_each = toset([
+    "roles/dataflow.admin",          
+    "roles/dataflow.worker",        
+    "roles/storage.admin",           
+    "roles/bigquery.admin",          
+    "roles/iam.serviceAccountUser"   
+  ])
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
+}
+
 resource "google_project_service_identity" "datastream_sa" {
   provider = google-beta
   project = var.project_id

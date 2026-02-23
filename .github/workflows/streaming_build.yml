@@ -1,0 +1,60 @@
+name: Dataflow Streaming Build and Deploy
+
+on:
+  push:
+    branches:
+      - main 
+    paths:
+      - 'Dataflow/**'
+      - '.github/workflows/streaming_build.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: ./Dataflow
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cahe: 'pip'
+
+      - name: Install Linter
+        run: pip install flake8
+
+      - name: Lint with flake8
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Deploy to Dataflow
+        run: |
+          python pipeline.py \
+            --project_id=${{ secrets.GCP_PROJECT_ID }} \
+            --ubicacion_pubsub_subscription_name=topic-ubicacion-sub \
+            --bigquery_dataset=monitoreo_dataset \
+            --tabla_zonas=${{ secrets.GCP_PROJECT_ID }}:monitoreo_dataset.zona-restringida \
+            --historico_notificaciones_bigquery_table=historico_notificaciones \
+            --db_host=${{ secrets.DB_HOST }} \
+            --db_user=${{ secrets.DB_USER }} \
+            --db_pass=${{ secrets.DB_PASS }} \
+            --runner=DataflowRunner \
+            --region=${{secrets.GCP_REGION}} \
+            --staging_location=gs://dataflow-temp-${{ secrets.GCP_PROJECT_ID }}/staging \
+            --temp_location=gs://dataflow-temp-${{ secrets.GCP_PROJECT_ID }}/temp
