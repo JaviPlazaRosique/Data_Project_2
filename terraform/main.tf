@@ -312,6 +312,7 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
       ports {
         container_port = 8080
       }
+
       startup_probe {
         initial_delay_seconds = 10
         timeout_seconds = 5
@@ -367,25 +368,11 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   ]
 }
 
-resource "google_service_account" "github_actions_sa" {
-  account_id   = "github-actions-deployer"
-  display_name = "Service Account para GitHub Actions CI/CD"
-  project      = var.project_id
-}
-
-resource "google_service_account_key" "github_sa_key" {
-  service_account_id = google_service_account.github_actions_sa.name
-}
-
 output "cicd_service_account_key" {
   description = "Contenido de la llave JSON para copiar a GitHub Secrets"
   value       = google_service_account_key.github_sa_key.private_key
   sensitive   = true
 }
-
-# Sacar los outpus y crear los secrets en GitHub para que el pipeline de CI/CD pueda desplegar en GCP usando esta cuenta de servicio.
-# En el repositorio del proyecto: Settings > Secrets > Actions > New Repository Secret con el nombre 
-# GCP_SA_KEY, DB_HOST, DB_USER, DB_PASS, GCP_PROJECT_ID, GCP_REGION
 
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   display_name = "Conexión de origen para Datastream (PostgreSQL)"
