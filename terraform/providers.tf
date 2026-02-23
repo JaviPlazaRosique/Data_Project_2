@@ -23,7 +23,6 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-}
 
 provider "google-beta" {
     project = var.project_id
