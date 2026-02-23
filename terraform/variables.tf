@@ -26,6 +26,7 @@ variable "servicios_gcp" {
     "cloudfunctions.googleapis.com",
     "logging.googleapis.com", 
     "servicenetworking.googleapis.com",
-    "datastream.googleapis.com"
+    "datastream.googleapis.com",
+    "dataflow.googleapis.com"
   ]
 }

@@ -494,7 +494,8 @@ resource "null_resource" "lanzar_dataflow" {
   depends_on = [
     google_sql_user.postgres_user,
     google_sql_database.menores_db,
-    google_service_networking_connection.private_vpc_connection
+    google_service_networking_connection.private_vpc_connection,
+    google_project_service.activar_servicios_proyecto,
   ]
 }
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {

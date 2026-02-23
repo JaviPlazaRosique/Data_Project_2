@@ -43,23 +43,23 @@ if "intentos" not in st.session_state:
 if "registering" not in st.session_state:
     st.session_state.registering = False
 
-def verificar_credenciales(nombre, apellidos, telefono):
+def verificar_credenciales(nombre, apellidos, clave):
     with engine.connect() as conn:
         consulta = text("""
             SELECT * FROM adultos 
-            WHERE nombre = :nombre AND apellidos = :apellidos AND telefono = :telefono
+            WHERE nombre = :nombre AND apellidos = :apellidos AND clave = :clave
         """)
-        resultado = conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "telefono": telefono}).fetchone()
+        resultado = conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "clave": clave}).fetchone()
         return resultado
 
-def registrar_adulto(nombre, apellidos, telefono, email):
+def registrar_adulto(nombre, apellidos, telefono, email, clave):
     try:
         with engine.begin() as conn:
             consulta = text("""
-                INSERT INTO adultos (nombre, apellidos, telefono, email)
-                VALUES (:nombre, :apellidos, :telefono, :email)
+                INSERT INTO adultos (nombre, apellidos, telefono, email, clave)
+                VALUES (:nombre, :apellidos, :telefono, :email, :clave)
             """)
-            conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "telefono": telefono, "email": email})
+            conn.execute(consulta, {"nombre": nombre, "apellidos": apellidos, "telefono": telefono, "email": email, "clave": clave})
         return True
     except Exception as e:
         return False
@@ -87,10 +87,11 @@ if not st.session_state.logged_in:
                 apellidos = st.text_input("Apellidos")
                 telefono = st.text_input("Teléfono")
                 email = st.text_input("Email")
+                clave = st.text_input("Clave", type="password")
                 submit_registro = st.form_submit_button("Registrarse")
 
                 if submit_registro:
-                    if registrar_adulto(nombre, apellidos, telefono, email):
+                    if registrar_adulto(nombre, apellidos, telefono, email, clave):
                         st.success("Registro completado con éxito. Por favor, inicia sesión.")
                         st.session_state.registering = False
                         st.rerun()
@@ -108,14 +109,14 @@ if not st.session_state.logged_in:
                 with st.form("login_form"):
                     nombre = st.text_input("Nombre")
                     apellidos = st.text_input("Apellidos")
-                    telefono = st.text_input("Teléfono", type="password")
+                    clave = st.text_input("Clave", type="password")
                     
                     c1, c2 = st.columns([3, 1])
                     with c2:
                         submit = st.form_submit_button("Entrar")
 
                     if submit:
-                        usuario = verificar_credenciales(nombre.strip(), apellidos.strip(), telefono.strip())
+                        usuario = verificar_credenciales(nombre.strip(), apellidos.strip(), clave.strip())
                         if usuario:
                             st.session_state.logged_in = True
                             st.session_state.usuario = usuario
