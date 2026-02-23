@@ -111,6 +111,15 @@ def obtener_ubicacion_menor(id_menor):
     except Exception:
         return None
 
+def obtener_historico_notificaciones(id_menor):
+    try:
+        with engine.connect() as conn:
+            consulta = text("SELECT fecha, estado, latitud, longitud FROM historico_notificaciones WHERE id_menor = :id_menor ORDER BY fecha DESC")
+            df = pd.read_sql(consulta, conn, params={"id_menor": id_menor})
+            return df
+    except Exception:
+        return pd.DataFrame()
+
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -261,70 +270,116 @@ else:
             if menor.discapacidad:
                 st.write("**Discapacidad:** Sí")
 
-        st.subheader("Mapa")
-        zonas = obtener_zonas_restringidas(menor.id)
-        ubicacion = obtener_ubicacion_menor(menor.id)
-        
-        lat, lon = 39.4699, -0.3763 
-        
-        if ubicacion:
-            lat, lon = ubicacion['latitud'], ubicacion['longitud']
-        else:
-            direccion_lower = str(menor.direccion).lower()
-            
-            if "madrid" in direccion_lower:
-                lat, lon = 40.4168, -3.7038
-            elif "barcelona" in direccion_lower:
-                lat, lon = 41.3851, 2.1734
-            
-        m = folium.Map(location=[lat, lon], zoom_start=12, tiles=None)
-        
-        folium.TileLayer("OpenStreetMap", name="Callejero").add_to(m)
-        
-        folium.TileLayer(
-            tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            attr='Esri',
-            name='Satélite'
-        ).add_to(m)
+        tab_mapa, tab_historico = st.tabs(["Mapa en Tiempo Real", "Histórico de Alertas"])
 
-        folium.TileLayer(
-            tiles='cartodbdark_matter',
-            name='Modo Oscuro'
-        ).add_to(m)
-
-        folium.LayerControl().add_to(m)
-
-        if ubicacion:
-            estado = ubicacion.get('estado', 'OK')
-            color_marcador = "green"
-            if estado == "PELIGRO":
-                color_marcador = "red"
-            elif estado == "ADVERTENCIA":
-                color_marcador = "orange"
+        with tab_mapa:
+            st.subheader("Mapa")
+            zonas = obtener_zonas_restringidas(menor.id)
             
-            folium.Marker(
-                location=[ubicacion['latitud'], ubicacion['longitud']],
-                popup=f"Ubicación Actual ({estado})",
-                icon=folium.Icon(color=color_marcador, icon="user")
-            ).add_to(m)
+            @st.fragment(run_every=5)
+            def mostrar_mapa():
+                ubicacion = obtener_ubicacion_menor(menor.id)
+                
+                lat_map, lon_map = 39.4699, -0.3763 
+                zoom_map = 12
+                
+                map_key = f"mapa_{menor.id}"
+                map_state = st.session_state.get(map_key)
+                
+                if map_state and map_state.get("center"):
+                    lat_map = map_state["center"]["lat"]
+                    lon_map = map_state["center"]["lng"]
+                    zoom_map = map_state["zoom"]
+                elif ubicacion:
+                    lat_map, lon_map = ubicacion['latitud'], ubicacion['longitud']
+                else:
+                    direccion_lower = str(menor.direccion).lower()
+                    
+                    if "madrid" in direccion_lower:
+                        lat_map, lon_map = 40.4168, -3.7038
+                    elif "barcelona" in direccion_lower:
+                        lat_map, lon_map = 41.3851, 2.1734
+                    
+                m = folium.Map(location=[lat_map, lon_map], zoom_start=zoom_map, tiles=None)
+                
+                folium.TileLayer("OpenStreetMap", name="Callejero").add_to(m)
+                
+                folium.TileLayer(
+                    tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    attr='Esri',
+                    name='Satélite'
+                ).add_to(m)
 
-        for zona in zonas:
-            folium.Circle(
-                location=[zona.latitud, zona.longitud],
-                radius=zona.radio_advertencia,
-                color="yellow",
-                fill=True,
-                fill_opacity=0.2,
-                popup=f"Advertencia: {zona.nombre}"
-            ).add_to(m)
+                folium.TileLayer(
+                    tiles='cartodbdark_matter',
+                    name='Modo Oscuro'
+                ).add_to(m)
+
+                folium.LayerControl().add_to(m)
+
+                if ubicacion:
+                    estado = ubicacion.get('estado', 'OK')
+                    color_marcador = "green"
+                    if estado == "PELIGRO":
+                        color_marcador = "red"
+                    elif estado == "ADVERTENCIA":
+                        color_marcador = "orange"
+                    
+                    folium.Marker(
+                        location=[ubicacion['latitud'], ubicacion['longitud']],
+                        popup=f"Ubicación Actual ({estado})",
+                        icon=folium.Icon(color=color_marcador, icon="user")
+                    ).add_to(m)
+
+                for zona in zonas:
+                    folium.Circle(
+                        location=[zona.latitud, zona.longitud],
+                        radius=zona.radio_advertencia,
+                        color="yellow",
+                        fill=True,
+                        fill_opacity=0.2,
+                        popup=f"Advertencia: {zona.nombre}"
+                    ).add_to(m)
+                    
+                    folium.Circle(
+                        location=[zona.latitud, zona.longitud],
+                        radius=zona.radio_peligro,
+                        color="red",
+                        fill=True,
+                        fill_opacity=0.4,
+                        popup=f"Peligro: {zona.nombre}"
+                    ).add_to(m)
+                
+                st_folium(m, use_container_width=True, height=500, key=map_key)
+
+            mostrar_mapa()
+
+        with tab_historico:
+            st.subheader("Historial de Notificaciones")
+            df_notificaciones = obtener_historico_notificaciones(menor.id)
             
-            folium.Circle(
-                location=[zona.latitud, zona.longitud],
-                radius=zona.radio_peligro,
-                color="red",
-                fill=True,
-                fill_opacity=0.4,
-                popup=f"Peligro: {zona.nombre}"
-            ).add_to(m)
-        
-        st_folium(m, use_container_width=True, height=500, key=f"mapa_{menor.id}")
+            if not df_notificaciones.empty:
+                st.write("Selecciona una notificación para ver el detalle en el mapa:")
+                event = st.dataframe(
+                    df_notificaciones, 
+                    use_container_width=True,
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    hide_index=True
+                )
+                
+                if event.selection["rows"]:
+                    idx = event.selection["rows"][0]
+                    row = df_notificaciones.iloc[idx]
+                    
+                    st.subheader("Ubicación de la Alerta")
+                    m_hist = folium.Map(location=[row['latitud'], row['longitud']], zoom_start=15)
+                    color = "red" if row['estado'] == "PELIGRO" else "orange"
+                    folium.Marker(
+                        [row['latitud'], row['longitud']],
+                        popup=f"{row['estado']} - {row['fecha']}",
+                        icon=folium.Icon(color=color, icon="info-sign")
+                    ).add_to(m_hist)
+                    st_folium(m_hist, height=300, use_container_width=True, key="mapa_historico")
+            else:
+                st.info("No hay notificaciones registradas para este menor.")
