@@ -173,7 +173,7 @@ El pipeline de procesamiento está desarrollado en **Apache Beam** y se ejecuta 
 3. **Cálculo Geoespacial**: Uso de la librería `geopy` para determinar la distancia geodésica exacta entre la posición del menor y los radios de las zonas.
 4. **Ramificación y Micro-batching**: El flujo de datos se divide para alimentar distintos sumideros simultáneamente:
    * **BigQuery**: Inserción en streaming para el registro histórico y analítico.
-   * **Firestore**: Actualización de documentos (NoSQL) para reflejar alertas inmediatas en la App de los padres.
+   * **Firestore**: Coleccion de ubicaciones, con el punto en el que se encuentra el menor, reflejandose actualizado en el mapa de la app y colección de notificacion en donde se hace actualización del estado para reflejar alertas de peligro y advertencia inmediatas en la App de los padres.
    * **PostgreSQL**: Inserción del estado de peligro y advertencia, evitando el estado OK. 
 
 ## Clasificación de Estados
