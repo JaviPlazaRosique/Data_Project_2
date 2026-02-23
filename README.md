@@ -118,6 +118,8 @@ Para mantener el Data Warehouse actualizado sin penalizar el rendimiento de la b
 ## Tecnologías utilizadas
 
 * **Google Cloud Platform (GCP)**: Hosting de toda la infraestructura.
+
+* **Terraform**: Infraestructura como código.
   
 * **Apache Beam & Dataflow**: Procesamiento de datos en streaming.
   
@@ -128,8 +130,10 @@ Para mantener el Data Warehouse actualizado sin penalizar el rendimiento de la b
 * **BigQuery**: Data Warehouse para análisis histórico.
   
 * **Firestore**: Alertas en tiempo real.
-  
-* **Terraform**: Infraestructura como código.
+
+* **Streamlit**: Despliegue de la App
+
+* **Plotly**: Genera el Dashboard
 
 ## Prerrequisitos
 
