@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TABLE IF NOT EXISTS menores (
+CREATE TABLE IF NOT EXISTS public_menores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_adulto UUID REFERENCES adultos(id),
     nombre VARCHAR(100) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS menores (
     discapacidad BOOLEAN
 );
 
-CREATE TABLE IF NOT EXISTS adultos (
+CREATE TABLE IF NOT EXISTS public_adultos (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre VARCHAR(100) NOT NULL,
     apellidos VARCHAR(100),
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS historico_notificaciones (
     estado VARCHAR(20)
 );
 
-CREATE TABLE IF NOT EXISTS zonas_restringidas (
+CREATE TABLE IF NOT EXISTS public_zonas_restringidas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id_menor UUID REFERENCES menores(id),
     nombre VARCHAR(100),
