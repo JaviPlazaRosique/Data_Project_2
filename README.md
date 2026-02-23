@@ -110,6 +110,10 @@ Almacena el resultado de cada procesamiento crítico realizado por el pipeline.
 
 * **Campos**: `id_menor`, `nombre_menor`, `estado` y `fecha`.
 * **Propósito**: Alimentar la vista de "Alertas" de la aplicación web de forma rápida.
+
+## Replicación de Datos (Change Data Capture)
+
+Para mantener el Data Warehouse actualizado sin penalizar el rendimiento de la base de datos transaccional, se implementó **Google Cloud Datastream**. Este servicio realiza una captura de datos modificados (CDC) en tiempo real, replicando automáticamente las tablas de Cloud SQL (PostgreSQL) hacia **BigQuery**. Esto permite que el Dashboard analítico consulte el histórico de forma eficiente y desacoplada de la operativa principal.
   
 ## Tecnologías utilizadas
 
