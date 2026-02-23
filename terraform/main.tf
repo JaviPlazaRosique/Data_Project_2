@@ -356,7 +356,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       env {
         name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.id
+        value = google_pubsub_topic.topic-ubicacion.name
       }
       env {
         name = "BUCKET_FOTOS"
