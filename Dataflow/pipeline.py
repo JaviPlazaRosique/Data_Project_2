@@ -2,7 +2,7 @@
 Script: Dataflow Streaming Pipeline
 
 Descripción: Monitoreo de la ubicacion de un menor en tiempo real comparando con las zonas prohibidas que su padre ha establecido. 
-En caso de que el menor entre a una zona de advertencia, se le enviará notificacion al menor y si entra en zona prohibida, 
+En caso de que el menor entre a una zona de advertenciatanto como si entra en zona prohibida, 
 se le enviará una notificación al padre.
 
 """
