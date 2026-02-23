@@ -74,11 +74,11 @@ resource "google_cloud_run_v2_service_iam_member" "uso_web_cloud_run" {
 
 resource "google_project_iam_member" "roles_cicd" {
   for_each = toset([
-    "roles/dataflow.admin",          # Para crear/detener jobs de Dataflow
-    "roles/dataflow.worker",         # Para que el robot pueda operar
-    "roles/storage.admin",           # Para subir el código al bucket temp
-    "roles/bigquery.admin",          # Para gestionar las tablas si fuera necesario
-    "roles/iam.serviceAccountUser"   # Permiso crítico para actuar en nombre de la cuenta de Dataflow
+    "roles/dataflow.admin",          
+    "roles/dataflow.worker",        
+    "roles/storage.admin",           
+    "roles/bigquery.admin",          
+    "roles/iam.serviceAccountUser"   
   ])
 
   project = var.project_id
