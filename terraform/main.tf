@@ -246,7 +246,7 @@ resource "google_cloud_run_v2_service" "api_cloud_run" {
       }
       env {
         name = "TOPICO_UBICACIONES"
-        value = google_pubsub_topic.topic-ubicacion.id
+        value = google_pubsub_topic.topic-ubicacion.name
       }
       env {
         name = "BUCKET_FOTOS"
@@ -399,7 +399,7 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
         period_seconds = 10
         failure_threshold = 24
         tcp_socket {
-          port = 5000
+          port = 8080
         }
       }
       env {
@@ -420,7 +420,6 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
   ]
 }
 
-
 # resource "null_resource" "lanzar_dataflow" {
 #   triggers = {
 #     password = random_password.contraseña-monitoreo-menores.result
@@ -439,6 +438,7 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
 #     google_service_networking_connection.private_vpc_connection
 #   ]
 # }
+
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   display_name = "Conexión de origen para Datastream (PostgreSQL)"
   location = var.region
