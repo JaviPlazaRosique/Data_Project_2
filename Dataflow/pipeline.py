@@ -2,25 +2,22 @@
 Script: Dataflow Streaming Pipeline
 
 Descripción: Monitoreo de la ubicacion de un menor en tiempo real comparando con las zonas prohibidas que su padre ha establecido. 
-En caso de que el menor entre a una zona de advertencia, se le enviará notificacion al menor y si entra en zona prohibida, 
+En caso de que el menor entre a una zona de advertenciatanto como si entra en zona prohibida, 
 se le enviará una notificación al padre.
 
 """
-# A. Librerias Apache Beam 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms.window import Sessions, SlidingWindows
-from apache_beam.io.filesystems import FileSystems
-from apache_beam.utils.timestamp import Timestamp
-
-
-# B. Librerias Python 
+from apache_beam.transforms import combiners
 import argparse
 import logging
 import json
 from geopy.distance import geodesic
 from datetime import datetime
 from google.cloud import firestore
+import psycopg2
+import time
+from zoneinfo import ZoneInfo
 
 def TransformacionPubSub(message):
     """Función para transformar los mensajes de Pub/Sub a un formato adecuado para el procesamiento, si falla devuelve None para no romper el proceso."""
@@ -36,26 +33,96 @@ def TransformacionPubSub(message):
         return None
 
 
+class LeerZonasPostgres(beam.DoFn):
+    """Se conecta a PostgreSQL y extrae las zonas restringidas, actualiza las zonas cada 5 min."""
+    def __init__(self, host, db, user, password):
+        self.host = host
+        self.db = db
+        self.user = user
+        self.password = password
+        self.lista_zonas = [] 
+        self.ultima_actualizacion = 0  
+        self.tiempo_refresco = 300
+
+    def setup(self):
+        self.conn = psycopg2.connect(
+            host=self.host, database=self.db, user=self.user, password=self.password
+        )
+
+    def process (self, element):
+        tiempo_actual = time.time()
+        if (tiempo_actual - self.ultima_actualizacion) > self.tiempo_refresco or not self.lista_zonas:
+            try:
+                cursor = self.conn.cursor()
+                query = """
+                    SELECT 
+                        z.id_menor, 
+                        m.nombre AS nombre_menor, 
+                        z.nombre AS nombre_zona, 
+                        z.latitud, 
+                        z.longitud, 
+                        z.radio_peligro, 
+                        z.radio_advertencia 
+                    FROM zonas_restringidas z
+                    JOIN menores m ON z.id_menor = m.id;
+                """
+                cursor.execute(query)                
+                filas = cursor.fetchall()
+                
+                nuevas_zonas = []
+                for fila in filas:
+                    zona_dict = {
+                        'id_menor': fila[0],
+                        'nombre_menor': fila[1], 
+                        'nombre_zona': fila[2],  
+                        'latitud': float(fila[3]),
+                        'longitud': float(fila[4]),
+                        'radio_peligro': float(fila[5]),
+                        'radio_advertencia': float(fila[6])
+                    }
+                    nuevas_zonas.append(zona_dict)
+                
+                self.lista_zonas = nuevas_zonas # Actualiza
+                self.ultima_actualizacion = time.time() # Reinicia el reloj
+                cursor.close()
+                logging.info("¡Zonas actualizadas desde la base de datos!")
+                
+            except Exception as e:
+                logging.error(f" Error actualizando zonas (se usarán las antiguas): {e}")
+        
+    
+        elemento_actualizado = dict(element)
+        elemento_actualizado['lista_zonas'] = self.lista_zonas
+        yield elemento_actualizado
+
+    def teardown(self):
+        if hasattr(self, 'conn') and self.conn:
+            self.conn.close()
+
+
 class ZonasRestringidas(beam.DoFn):
     """Clase para comparar la ubicación del menor con las zonas restringidas establecidas por el padre"""
    
-    def process(self, element, lista_zonas):
-        # element =  #Diccionario con datos de la ubicacion del niño (viene del Pub/Sub)
-        # lista_zonas = #Lista con todas las zonas (viene de BigQuery)
+    def process(self, element):
         try:
             id_menor=element.get('id_menor')
             lat_menor=float(element.get('latitud'))
             long_menor=float(element.get('longitud'))
+            lista_zonas = element.get('lista_zonas', [])
+            id_actual = element.get('id_menor')
 
         except Exception as e:
-            logging.error(f"❌ ERROR procesando coordenadas: {e} | Dato recibido: {element}")
+            logging.error(f" ERROR procesando coordenadas: {e} | Dato recibido: {element}")
             return
         
         estado = "OK" 
-        zona_detectada = None
+        nombre_real = next((z.get('nombre_menor') for z in lista_zonas if z.get('id_menor') == id_actual), "el menor")
+        element['nombre_menor'] = nombre_real
+
 
         for zona in lista_zonas:
             if id_menor == zona.get('id_menor'): 
+                element['nombre_menor'] = zona.get('nombre_menor')
                 lat_zona=float(zona.get('latitud'))
                 long_zona=float(zona.get('longitud'))
                 radio_peligro = float(zona.get('radio_peligro'))
@@ -64,59 +131,55 @@ class ZonasRestringidas(beam.DoFn):
                 distancia_metros = geodesic((lat_menor, long_menor), (lat_zona, long_zona)).meters
                 if distancia_metros < radio_peligro:
                     estado = "PELIGRO"
-                    zona_detectada = zona['nombre']
-                    break # Es lo peor que puede pasar, dejamos de mirar
+                    break
                 
                 elif distancia_metros < radio_advertencia:
                     if estado != "PELIGRO":
                         estado = "ADVERTENCIA"
-                        zona_detectada = zona['nombre']
-
             else:
                 continue
         element['estado'] = estado
-        element['zona_involucrada'] = zona_detectada
 
         if 'fecha' not in element:
-            element['fecha'] = datetime.now().isoformat()
+            element['fecha'] = datetime.now(ZoneInfo("Europe/Madrid")).isoformat()
 
-        logging.info(f"Procesado: Niño {id_menor} -> Estado: {estado} (Zona: {zona_detectada})")        
+        if 'lista_zonas' in element:
+            del element['lista_zonas']
+        
+        logging.info(f"Procesado: Niño {id_menor} -> Estado: {estado}")        
 
         yield element    
 
 class EnviarNotificaciones(beam.DoFn):
-    """Clase para enviar notificaciones al padre o al menor dependiendo del estado detectado."""
+    """Clase para enviar notificaciones al padre dependiendo del estado detectado."""
     def process(self, element):
         estado = element.get('estado')
 
         if estado == "OK":
-            logging.info(f"OK: El niño {element.get('id_menor')} está en una zona segura. No se requiere notificación.")  
+            logging.info(f"OK: El niño {element.get('nombre_menor')} está en una zona segura. No se requiere notificación.")  
          
         else:
-            id_menor = element.get('id_menor')
-            zona = element.get('zona_involucrada')
+            nombre_menor = element.get('nombre_menor')
             mensaje_alerta = None
 
             if estado == "PELIGRO":
-                logging.warning(f"🚨 ALERTA ROJA: El niño {id_menor} ha entrado en una zona de PELIGRO ({zona}). Notificando al padre.")
+                logging.warning(f"🚨 ALERTA ROJA: El niño {nombre_menor} ha entrado en una zona de PELIGRO). Notificando al padre.")
                 mensaje_alerta = {
-                "destinatario": "PADRE", # Aquí iría el email/teléfono real
                 "asunto": f"¡ALERTA DE {estado}!",
-                "cuerpo": f"Atención: {id_menor} ha entrado en la zona {zona}. Por favor, verifique su ubicación.",
-                "fecha y hora": element.get('fecha', datetime.now().isoformat())
+                "cuerpo": f"Atención: {nombre_menor} ha entrado en una zona de peligro. Por favor, verifique su ubicación.",
+                "fecha y hora": element.get('fecha', datetime.now(ZoneInfo("Europe/Madrid")).isoformat())
             }
             
             elif estado == "ADVERTENCIA":
-                logging.info(f"⚠️ ADVERTENCIA: El niño {id_menor} cerca de zona ({zona}). Notificando al menor.")
+                logging.info(f"⚠️ ADVERTENCIA: El niño {nombre_menor} esta cerca de la zona restringida.")
                 mensaje_alerta = {
-                "destinatario": "MENOR",
                 "asunto": f"¡ALERTA DE {estado}!",
-                "cuerpo": f"Atención: {id_menor} ha entrado en la zona restringida de {zona}.",
-                "fecha y hora": element.get('fecha', datetime.now().isoformat())
+                "cuerpo": f"Atención: {nombre_menor} ha entrado en zona de advertencia.",
+                "fecha y hora": element.get('fecha', datetime.now(ZoneInfo("Europe/Madrid")).isoformat())
             }
            
             else:
-                logging.info(f"OK: El niño {id_menor} está en una zona segura.")
+                logging.info(f"OK: El niño {nombre_menor} está en una zona segura.")
 
 
             if mensaje_alerta:
@@ -133,36 +196,36 @@ class GuardarEnFirestore(beam.DoFn):
 
     def process(self, element):
         id_menor = element['id_menor']
+        nombre_menor = element['nombre_menor']
         estado = element['estado']
 
         # ubicacion
         doc_ref_ubic = self.db.collection('ubicaciones').document(id_menor)
         datos_ubicacion = {
+            "id_menor": id_menor,
+            "nombre_menor": nombre_menor,
             "latitud": element['latitud'],
             "longitud": element['longitud'],
             "estado": estado,
             "fecha": firestore.SERVER_TIMESTAMP 
         }
         doc_ref_ubic.set(datos_ubicacion, merge=True) #merge=true para que no borre datos anteriores como info del niño, solo actualiza la ubicacion y el estado.
-        logging.info(f"Ubicación actualizada: {id_menor}")
+        logging.info(f"Ubicación actualizada: {nombre_menor}")
 
         # notificaciones
 
         if estado != "OK": 
             
-            zona = element.get('zona_involucrada', 'zona desconocida')
 
             if estado == "PELIGRO":
-                    destinatario = "PADRE"
-                    mensaje = f"¡Alerta! {id_menor} ha entrado en la zona prohibida: {zona}."
-            else: # ADVERTENCIA
-                    destinatario = "MENOR"
-                    mensaje = f"Ten cuidado, estás acercándote a la zona: {zona}."
+                    mensaje = f"¡Alerta! {nombre_menor} ha entrado en una zona prohibida."
+            else: 
+                    mensaje = f"Ten cuidado, está acercándose a una zona restringida."
             datos_alerta = {
                 "id_menor": id_menor,
-                "asunto": f"¡ALERTA DE {estado}!", # PELIGRO o ADVERTENCIA
+                "nombre_menor": nombre_menor,
+                "asunto": f"¡ALERTA DE {estado}!",
                 "cuerpo": mensaje,
-                "destinatario": destinatario,
                 "fecha": firestore.SERVER_TIMESTAMP,
                 "leido": False
             }
@@ -172,7 +235,52 @@ class GuardarEnFirestore(beam.DoFn):
 
         yield element
 
+class GuardarAlertasPostgres(beam.DoFn):
+    """Guarda todas las columnas en PostgreSQL SOLO si el estado es PELIGRO o ADVERTENCIA."""
+    def __init__(self, host, db, user, password):
+        self.host = host
+        self.db = db
+        self.user = user
+        self.password = password
 
+    def setup(self):
+        self.conn = psycopg2.connect(
+            host=self.host, database=self.db, user=self.user, password=self.password
+        )
+
+    def process(self, element):
+        estado = element.get('estado')
+        
+        # Filtramos para descartar los OK
+        if estado in ["PELIGRO", "ADVERTENCIA"]:
+            
+            id_menor = element.get('id_menor')
+            nombre_menor = element.get('nombre_menor')
+            latitud = element.get('latitud')
+            longitud = element.get('longitud')
+            fecha = element.get('fecha')
+            
+            try:
+                cursor = self.conn.cursor()
+                query = """
+                    INSERT INTO historico_notificaciones (id_menor, nombre_menor, latitud, longitud, estado, fecha) 
+                    VALUES (%s, %s, %s, %s, %s, %s);
+                """
+                cursor.execute(query, (id_menor, nombre_menor, latitud, longitud, estado, fecha))
+                self.conn.commit() 
+                cursor.close()
+                
+                logging.info(f"✅ BD Postgres Actualizada con ALERTA: {estado} para {id_menor}")
+                
+            except Exception as e:
+                self.conn.rollback() 
+                logging.error(f"❌ Error guardando alerta en Postgres: {e}")
+
+        yield element
+
+    def teardown(self):
+        if hasattr(self, 'conn') and self.conn:
+            self.conn.close()
 
 """ Codigo: Proceso de Dataflow  """
 
@@ -183,30 +291,32 @@ def run():
 
     parser.add_argument(
                 '--project_id',
-                required=False,
-                default='dataflow-marina',
+                required=True,
                 help='nombre del proyecto en GCP.')
-    
     parser.add_argument(
                 '--ubicacion_pubsub_subscription_name',
-                required=False,
-                default='topic-ubicacion-sub',
+                required=True,
                 help='subscripcion de ubicacion de menores en Pub/Sub.')
     parser.add_argument(
                 '--bigquery_dataset',
-                required=False,
-                default='monitoreo_dataset',
+                required=True,
                 help='BigQuery dataset name.')
     parser.add_argument(
-                '--tabla_zonas',
-                required=False,
-               default='dataflow-marina:monitoreo_dataset.zona-restringida',
-                help='Tabla BigQuery con zonas restringidas.')
+                '--historico_notificaciones_bigquery_table',
+                required=True,
+                help='Tabla BigQuery para historico de notificaciones.')
     parser.add_argument(
-                '--historico_ubicacion_bigquery_table',
-                required=False,
-                default='historico_ubicacion',
-                help='Tabla BigQuery para historico de ubicaciones.')
+                '--db_host', 
+                required=True, 
+                help='IP privada de Cloud SQL.')
+    parser.add_argument(
+                '--db_user', 
+                required=True, 
+                help='Usuario de la BD.')
+    parser.add_argument(
+                '--db_pass', 
+                required=True, 
+                help='Contraseña de la BD.')
 
     
     args, pipeline_opts = parser.parse_known_args()
@@ -222,55 +332,51 @@ def run():
                               service_account_email="dataflow-worker-sa@" + args.project_id + ".iam.gserviceaccount.com")
     # Pipeline Object
     with beam.Pipeline(argv=pipeline_opts,options=options) as p:
-        #
-        # zonas_restringidas = (
-        #     p 
-        #     | "LeerZonasBQ" >> beam.io.ReadFromBigQuery(table=args.tabla_zonas)
-        # )
-
-        #para hacer pruebas en local usamos: 
-        # pegando en otrs consola: gcloud pubsub topics publish topic-ubicacion --message '{"id_menor": "Javi", "latitud": 39.4699, "longitud": -0.3763}'
-        datos_simulados_bq = [{
-            'id_menor': 'Javi',           # ID del niño que probaremos
-            'nombre': 'Zona Centro',
-            'latitud': 39.4699,          # Plaza del Ayto. Valencia
-            'longitud': -0.3763,
-            'radio_peligro': 100,        # 100 metros
-            'radio_advertencia': 500     # 500 metros
-        }]
-
-
-        zonas_restringidas = (
-            p 
-            | "CrearZonasSimuladas" >> beam.Create(datos_simulados_bq)
-        )
-
+        
         mensajes_procesados = (
             p
                 | "LeerDeUbicacionPubSub" >> beam.io.ReadFromPubSub(subscription=f'projects/{args.project_id}/subscriptions/{args.ubicacion_pubsub_subscription_name}')
                 | "TransformarMensajePubSub">> beam.Map(TransformacionPubSub)
-                | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) #ver si es necesario o lo sacamos pq los mensajes vana a venir siempre con la info que queremos
+                | "FiltrarVacios" >> beam.Filter(lambda x: x is not None) 
                 | "VentanaDeTiempo" >> beam.WindowInto(beam.window.FixedWindows(10), allowed_lateness=beam.utils.timestamp.Duration(seconds=5)) # Agrupamos los datos en bloques de 10 segundos
-                | "CompararConZonasRestringidas" >> beam.ParDo(ZonasRestringidas(), beam.pvalue.AsList(zonas_restringidas))
-                
+                | "MapearConClave" >> beam.Map(lambda x: (x.get('id_menor'), x)) # filtramos usando el id_menor
+                | "QuedarseConElUltimo" >> combiners.Latest.PerKey() #De todos los mensajes con mismo id en esos 10s, se queda solo con el más reciente
+                | "ExtraerValores" >> beam.FlatMap(lambda x: [x[1]] if x and x[1] is not None else [])#Le quitamos el filtro para que el diccionario vuelva a la normalidad y siga el flujo
+                | "LeerZonasPostgres" >> beam.ParDo(LeerZonasPostgres(
+                    host=args.db_host, 
+                    db="menores_db", 
+                    user=args.db_user, 
+                    password=args.db_pass
+                ))
+                | "CompararConZonasRestringidas" >> beam.ParDo(ZonasRestringidas())   
         )
+
         (mensajes_procesados
                 | "EnviarNotificaciones" >> beam.ParDo(EnviarNotificaciones())
-                | "ImprimirEnPantalla" >> beam.Map(print)
         )
         
         (mensajes_procesados 
                 | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
                         project=args.project_id,
                         dataset=args.bigquery_dataset,
-                        table=args.historico_ubicacion_bigquery_table,
-                        schema='id:STRING, fecha:TIMESTAMP, latitud:FLOAT, longitud:FLOAT, radio:FLOAT, direccion:INTEGER, duracion:INT64, id_menor:STRING, estado:STRING, zona_involucrada:STRING',                        
-                        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
+                        table=args.historico_notificaciones_bigquery_table,
+                        schema='id_menor:STRING, nombre_menor:STRING, latitud:FLOAT, longitud:FLOAT, fecha:TIMESTAMP, estado:STRING',                        
+                        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED, 
+                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                        ignore_unknown_columns=True
                     )
         )
         (mensajes_procesados
             | "GuardarEnFirestore" >> beam.ParDo(GuardarEnFirestore(args.project_id)) 
+        )
+
+        (mensajes_procesados
+            | "GuardarAlertasPostgres" >> beam.ParDo(GuardarAlertasPostgres(
+                    host=args.db_host, 
+                    db="menores_db", 
+                    user=args.db_user, 
+                    password=args.db_pass
+                ))
         )
         
 
