@@ -185,6 +185,29 @@ else:
         st.session_state.selected_child = None
         st.rerun()
 
+    @st.fragment(run_every=5)
+    def verificar_alertas_globales():
+        try:
+            menores_usuario = obtener_menores(st.session_state.usuario.id)
+            ids_menores = [str(m.id) for m in menores_usuario]
+            
+            if ids_menores:
+                for i in range(0, len(ids_menores), 10):
+                    chunk = ids_menores[i:i+10]
+                    docs = db_firestore.collection("notificaciones")\
+                        .where("id_menor", "in", chunk)\
+                        .where("leido", "==", False)\
+                        .stream()
+                    
+                    for doc in docs:
+                        data = doc.to_dict()
+                        st.toast(f"{data.get('asunto')}: {data.get('cuerpo')}", icon="🚨")
+                        db_firestore.collection("notificaciones").document(doc.id).update({"leido": True})
+        except Exception:
+            pass
+
+    verificar_alertas_globales()
+
     if "selected_child" not in st.session_state:
         st.session_state.selected_child = None
 
