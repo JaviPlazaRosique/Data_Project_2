@@ -1,216 +1,170 @@
-import dash
-from dash import dcc, html, Input, Output, dash_table, State
-import pandas as pd
 import os
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
 import plotly.express as px
+import pandas as pd
 from google.cloud import bigquery
 
-
-PROJECT_ID = os.getenv("PROJECT_ID")
-client = bigquery.Client(project=PROJECT_ID)
-
-dark_theme = {
-    'background': '#0f0f0f',
-    'paper': "#1e1e1e",
-    'text': '#ffffff',
-    'accent': "#00d4ff",
-    'danger': "#ff4d4d",
-    'warning': "#ffaa00",
-    'subtle': "#b3b3b3",
-    'info_bg': "rgba(0, 212, 255, 0.05)"
-}
-
-card_style = {
-    'backgroundColor': dark_theme['paper'],
-    'color': dark_theme['text'],
-    'padding': '20px',
-    'borderRadius': '15px',
-    'boxShadow': '0 4px 15px 0 rgba(0,212,255,0.1)',
-    'textAlign': 'center',
-    'flex': '1',
-    'margin': '10px',
-    'minWidth': '180px',
-    'borderTop': f'4px solid {dark_theme["accent"]}'
-}
-
-section_title_style = {
-    'color': dark_theme['accent'],
-    'textTransform': 'uppercase',
-    'letterSpacing': '2px',
-    'fontSize': '1.2rem',
-    'borderBottom': f'1px solid {dark_theme["accent"]}',
-    'paddingBottom': '10px',
-    'marginBottom': '20px'
-}
-
-info_box_style = {
-    'backgroundColor': dark_theme['info_bg'],
-    'color': dark_theme['accent'],
-    'padding': '15px',
-    'borderRadius': '10px',
-    'fontSize': '0.9rem',
-    'marginTop': '10px',
-    'border': f'1px solid {dark_theme["accent"]}'
-}
-
-def ejecutar_query(query):
-    try:
-        return client.query(query).to_dataframe()
-    except Exception as e:
-        print(f"Error en BQ: {e}")
-        return pd.DataFrame()
-
-def obtener_kpis():
-    query = f""" 
-        SELECT
-            (SELECT COUNT (*) FROM `{PROJECT_ID}.monitoreo_dataset.public_adultos`) AS adultos,
-            (SELECT COUNT (*) FROM `{PROJECT_ID}.monitoreo_dataset.public_menores`) AS ninos_totales,
-            (SELECT COUNT(DISTINCT id_menor) FROM `{PROJECT_ID}.monitoreo_dataset.historico_notificaciones` WHERE estado != 'OK') as ninos_con_alerta,
-            (SELECT COUNT(*) FROM `{PROJECT_ID}.monitoreo_dataset.historico_notificaciones` WHERE estado = 'PELIGRO') as alarmas, 
-            (SELECT COUNT(*) FROM `{PROJECT_ID}.monitoreo_dataset.historico_notificaciones` WHERE estado = 'ADVERTENCIA') as advertencias
-    """
-    df = ejecutar_query(query)
-    return df.iloc[0].to_dict() if not df.empty else {}
-
-def obtener_datos_graficos():
-    query = f"""
-        SELECT 
-            CONCAT(m.nombre, ' ', m.apellidos) as nombre_completo,
-            m.discapacidad,
-            m.id as id_nino,
-            m.direccion as ubicacion,
-            CONCAT(a.nombre, ' ', a.apellidos) as nombre_tutor,
-            COUNTIF(h.estado = 'PELIGRO') as peligros,
-            COUNTIF(h.estado = 'ADVERTENCIA') as advertencias
-        FROM `{PROJECT_ID}.monitoreo_dataset.public_menores` m
-        JOIN `{PROJECT_ID}.monitoreo_dataset.public_adultos` a ON m.id_adulto = a.id
-        LEFT JOIN `{PROJECT_ID}.monitoreo_dataset.historico_notificaciones` h ON m.id = h.id_menor
-        GROUP BY 1, 2, 3, 4, 5
-    """
-    return ejecutar_query(query)
-
-def obtener_zonas_frecuentes(tipo_estado):
-    query = f"""
-        SELECT z.nombre as zona, COUNT(h.id) as frecuencia
-        FROM `{PROJECT_ID}.monitoreo_dataset.public_zonas_restringidas` z
-        JOIN `{PROJECT_ID}.monitoreo_dataset.historico_notificaciones` h ON z.id_menor = h.id_menor
-        WHERE h.estado = '{tipo_estado}'
-        GROUP BY 1
-        ORDER BY frecuencia DESC
-    """
-    return ejecutar_query(query)
-
-def obtener_tendencia_2026(id_nino="ALL"):
-    filtro_nino = f"AND id_menor = '{id_nino}'" if id_nino != "ALL" else ""
-    query = f"""
-        SELECT EXTRACT(DAY FROM fecha) as periodo, COUNT(*) as incidentes
-        FROM `{PROJECT_ID}.monitoreo_dataset.historico_notificaciones`
-        WHERE EXTRACT(YEAR FROM fecha) = 2026 
-        GROUP BY 1 ORDER BY 1
-    """
-    return ejecutar_query(query)
-
 app = dash.Dash(__name__)
-server = app.server 
+server = app.server
 
-app.layout = html.Div(style={'backgroundColor': dark_theme['background'], 'color': dark_theme['text'], 'minHeight': '100vh', 'padding': '40px', 'fontFamily': 'Segoe UI, sans-serif'}, children=[
+project_id = os.getenv("PROJECT_ID")
+client = bigquery.Client(project=project_id)
+dataset_id = "monitoreo_dataset"
+
+def get_data():
+    """Consulta datos de BigQuery para los KPIs y gráficos."""
     
-    html.Div([
-        html.H1("SISTEMA DE MONITOREO", style={'color': '#ffffff', 'margin': '0', 'fontWeight': '800', 'fontSize': '3rem'}),
-        html.P("PANEL DE CONTROL ADMINISTRATIVO", style={'color': dark_theme['accent'], 'letterSpacing': '5px', 'fontWeight': '300'})
-    ], style={'marginBottom': '50px'}),
+    # Consulta 1: Histórico de notificaciones (últimas 24 horas)
+    query_notificaciones = f"""
+        SELECT 
+            id_menor, 
+            nombre_menor, 
+            latitud, 
+            longitud, 
+            fecha, 
+            estado 
+        FROM `{project_id}.{dataset_id}.historico_notificaciones`
+        WHERE fecha >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+        ORDER BY fecha DESC
+    """
+    
+    try:
+        df_notificaciones = client.query(query_notificaciones).to_dataframe()
+    except Exception as e:
+        print(f"Error consultando notificaciones: {e}")
+        df_notificaciones = pd.DataFrame(columns=['id_menor', 'nombre_menor', 'latitud', 'longitud', 'fecha', 'estado'])
 
-    html.Div(style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'marginBottom': '40px'}, children=[
-        html.Div([html.P("ADULTOS"), html.H2(id="kpi-adultos")], style=card_style),
-        html.Div([html.P("NIÑOS TOTALES"), html.H2(id="kpi-ninos")], style=card_style),
-        html.Div([html.P("NIÑOS CON ALERTA"), html.H2(id="kpi-ninos-alerta", style={'color': dark_theme['danger']})], style=card_style),
-        html.Div([html.P("PELIGROS TOTALES"), html.H2(id="kpi-alarmas", style={'color': dark_theme['danger']})], style=card_style),
-        html.Div([html.P("ADVERTENCIAS"), html.H2(id="kpi-advertencias", style={'color': dark_theme['warning']})], style=card_style),
+    # Consulta 2: Total de menores monitoreados
+    # Intentamos leer de la tabla 'menores' replicada por Datastream.
+    total_menores = 0
+    try:
+        query_menores = f"SELECT count(*) as total FROM `{project_id}.{dataset_id}.menores`"
+        df_menores = client.query(query_menores).to_dataframe()
+        if not df_menores.empty:
+            total_menores = df_menores['total'][0]
+    except Exception:
+        # Fallback: contar IDs únicos en notificaciones si la tabla menores no está disponible
+        if not df_notificaciones.empty:
+            total_menores = df_notificaciones['id_menor'].nunique()
+
+    return df_notificaciones, total_menores
+
+# Estilos CSS
+style_card = {
+    'border': '1px solid #e0e0e0',
+    'padding': '20px',
+    'border-radius': '8px',
+    'background-color': 'white',
+    'box-shadow': '0 2px 4px rgba(0,0,0,0.1)',
+    'text-align': 'center',
+    'flex': '1',
+    'margin': '0 10px'
+}
+
+style_container = {
+    'font-family': '"Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    'padding': '20px',
+    'background-color': '#f5f5f5',
+    'min-height': '100vh'
+}
+
+app.layout = html.Div(style=style_container, children=[
+    html.H1("Dashboard de Administración - Monitoreo de Menores", 
+            style={'text-align': 'center', 'color': '#333', 'margin-bottom': '30px'}),
+    
+    html.Div(style={'display': 'flex', 'justify-content': 'space-between', 'margin-bottom': '30px'}, children=[
+        html.Div(style=style_card, children=[
+            html.H3("Total Menores", style={'color': '#7f8c8d', 'font-size': '1.2rem'}),
+            html.H2(id='kpi-menores', style={'color': '#2980b9', 'font-size': '2.5rem', 'margin': '10px 0'})
+        ]),
+        html.Div(style=style_card, children=[
+            html.H3("Alertas (24h)", style={'color': '#7f8c8d', 'font-size': '1.2rem'}),
+            html.H2(id='kpi-alertas', style={'color': '#f39c12', 'font-size': '2.5rem', 'margin': '10px 0'})
+        ]),
+        html.Div(style=style_card, children=[
+            html.H3("Peligros Críticos", style={'color': '#7f8c8d', 'font-size': '1.2rem'}),
+            html.H2(id='kpi-peligros', style={'color': '#c0392b', 'font-size': '2.5rem', 'margin': '10px 0'})
+        ]),
     ]),
 
-    html.Div(style={'backgroundColor': dark_theme['paper'], 'padding': '30px', 'borderRadius': '15px', 'marginBottom': '40px'}, children=[
-        html.H3("Ficha de Seguridad Individual", style=section_title_style),
-        dcc.Dropdown(id='selector-detalle', placeholder="Buscar niño...", style={'color': '#000'}),
-        html.Div(id='ficha-nino', style={'display': 'grid', 'gridTemplateColumns': 'repeat(auto-fit, minmax(200px, 1fr))', 'gap': '20px', 'marginTop': '20px'})
+    html.Div(style={'display': 'flex', 'flex-wrap': 'wrap', 'gap': '20px', 'margin-bottom': '30px'}, children=[
+        html.Div(style={'flex': '1', 'min-width': '400px', 'background': 'white', 'padding': '15px', 'border-radius': '8px', 'box-shadow': '0 2px 4px rgba(0,0,0,0.1)'}, children=[
+            html.H3("Distribución de Alertas", style={'text-align': 'center', 'color': '#555'}),
+            dcc.Graph(id='grafico-estados')
+        ]),
+        html.Div(style={'flex': '1', 'min-width': '400px', 'background': 'white', 'padding': '15px', 'border-radius': '8px', 'box-shadow': '0 2px 4px rgba(0,0,0,0.1)'}, children=[
+            html.H3("Mapa de Incidencias", style={'text-align': 'center', 'color': '#555'}),
+            dcc.Graph(id='mapa-alertas')
+        ]),
     ]),
     
-    html.Div(style={'display': 'flex', 'flexDirection': 'row', 'gap': '20px', 'marginBottom': '40px'}, children=[
-        html.Div(style={'flex': '1', 'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px'}, children=[
-            html.H3("Ranking de Peligros Críticos", style=section_title_style),
-            dcc.Graph(id='grafico-peligro', config={'displayModeBar': False}),
-            html.Div("Incidentes en zonas de peligro extremo.", style=info_box_style)
-        ]),
-        html.Div(style={'flex': '1', 'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px'}, children=[
-            html.H3("Ranking de Advertencias", style=section_title_style),
-            dcc.Graph(id='grafico-advertencia', config={'displayModeBar': False}),
-            html.Div("Avisos preventivos frecuentes.", style=info_box_style)
-        ]),
+    html.Div(style={'background': 'white', 'padding': '20px', 'border-radius': '8px', 'box-shadow': '0 2px 4px rgba(0,0,0,0.1)'}, children=[
+        html.H3("Últimas 10 Notificaciones", style={'color': '#555', 'margin-bottom': '15px'}),
+        html.Div(id='tabla-notificaciones', style={'overflow-x': 'auto'})
     ]),
 
-    html.Div(style={'display': 'flex', 'flexDirection': 'row', 'gap': '20px', 'marginBottom': '40px'}, children=[
-        html.Div(style={'flex': '1', 'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px'}, children=[
-            html.H3("Zonas de Peligro Frecuentes", style=section_title_style),
-            dcc.Graph(id='tarta-peligro', config={'displayModeBar': False}),
-        ]),
-        html.Div(style={'flex': '1', 'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px'}, children=[
-            html.H3("Zonas de Advertencia Frecuentes", style=section_title_style),
-            dcc.Graph(id='tarta-advertencia', config={'displayModeBar': False}),
-        ]),
-    ]),
-
-    html.Div(style={'backgroundColor': dark_theme['paper'], 'borderRadius': '15px', 'padding': '25px', 'marginBottom': '40px'}, children=[
-        html.H3("Evolución de Incidentes - Año 2026", style=section_title_style),
-        dcc.Graph(id='grafico-tendencia-2026', config={'displayModeBar': False}),
-        html.Div("Seguimiento diario del volumen de alertas registradas durante el año en curso.", style=info_box_style)
-    ]),
-
-    dcc.Interval(id='interval-component', interval=30*1000, n_intervals=0)
+    dcc.Interval(
+        id='interval-component',
+        interval=60*1000, 
+        n_intervals=0
+    )
 ])
 
-# ---- CALLBACKS ----
 @app.callback(
-    [Output('kpi-adultos', 'children'), Output('kpi-ninos', 'children'), Output('kpi-ninos-alerta', 'children'),
-     Output('kpi-alarmas', 'children'), Output('kpi-advertencias', 'children'), Output('grafico-peligro', 'figure'),
-     Output('grafico-advertencia', 'figure'), Output('tarta-peligro', 'figure'), Output('tarta-advertencia', 'figure'),
-     Output('selector-detalle', 'options'), Output('grafico-tendencia-2026', 'figure')],
-    [Input('interval-component', 'n_intervals'), Input('selector-detalle', 'value')]
+    [Output('kpi-menores', 'children'),
+     Output('kpi-alertas', 'children'),
+     Output('kpi-peligros', 'children'),
+     Output('grafico-estados', 'figure'),
+     Output('mapa-alertas', 'figure'),
+     Output('tabla-notificaciones', 'children')],
+    [Input('interval-component', 'n_intervals')]
 )
-def update_main_data(n, id_nino_seleccionado):
-    kpis = obtener_kpis()
-    df = obtener_datos_graficos()
-    df_zonas_p = obtener_zonas_frecuentes('PELIGRO')
-    df_zonas_a = obtener_zonas_frecuentes('ADVERTENCIA')
-    id_filtro = id_nino_seleccionado if id_nino_seleccionado else "ALL"
-    df_2026 = obtener_tendencia_2026(id_filtro)
-
-    def crear_barra(df_sub, y_col, color):
-        if df_sub.empty or df_sub[y_col].sum() == 0:
-            return px.bar(title="Sin datos registrados").update_layout(template='plotly_dark')
-        return px.bar(df_sub.sort_values(y_col, ascending=False), x='nombre_completo', y=y_col, color_discrete_sequence=[color]).update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-
-    fig_p = crear_barra(df, 'peligros', dark_theme['danger'])
-    fig_a = crear_barra(df, 'advertencias', dark_theme['warning'])
+def update_dashboard(n):
+    df, total_menores = get_data()
     
-    fig_tarta_p = px.pie(df_zonas_p, values='frecuencia', names='zona', hole=.4, color_discrete_sequence=px.colors.sequential.Reds_r).update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)')
-    fig_tarta_a = px.pie(df_zonas_a, values='frecuencia', names='zona', hole=.4, color_discrete_sequence=px.colors.sequential.Oranges_r).update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)')
+    total_alertas = 0
+    total_peligros = 0
+    fig_estados = px.pie(title="Sin datos")
+    fig_mapa = px.scatter_mapbox(lat=[], lon=[], zoom=1)
+    fig_mapa.update_layout(mapbox_style="open-street-map")
+    tabla_html = html.P("No hay datos disponibles.")
 
-    if df_2026.empty:
-        fig_2026 = px.area(title="No hay registros en 2026").update_layout(template='plotly_dark')
-    else:
-        fig_2026 = px.area(df_2026, x='periodo', y='incidentes', color_discrete_sequence=[dark_theme['accent']]).update_layout(template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    if not df.empty:
+        total_alertas = len(df)
+        total_peligros = len(df[df['estado'] == 'PELIGRO'])
+        
+        fig_estados = px.pie(df, names='estado', hole=0.4,
+                             color='estado',
+                             color_discrete_map={'PELIGRO': '#c0392b', 'ADVERTENCIA': '#f39c12', 'OK': '#27ae60'})
+        fig_estados.update_layout(margin=dict(t=0, b=0, l=0, r=0))
 
-    options = [{"label": row['nombre_completo'], "value": row['id_nino']} for _, row in df.iterrows()]
+        fig_mapa = px.scatter_mapbox(df, lat="latitud", lon="longitud", color="estado",
+                                     hover_name="nombre_menor", hover_data=["fecha", "estado"],
+                                     color_discrete_map={'PELIGRO': '#c0392b', 'ADVERTENCIA': '#f39c12', 'OK': '#27ae60'},
+                                     zoom=5)
+        fig_mapa.update_layout(mapbox_style="carto-positron")
+        fig_mapa.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
-    return (kpis.get('adultos', 0), kpis.get('ninos_totales', 0), kpis.get('ninos_con_alerta', 0), kpis.get('alarmas', 0), kpis.get('advertencias', 0), fig_p, fig_a, fig_tarta_p, fig_tarta_a, options, fig_2026)
+        df_tabla = df.head(10)[['fecha', 'nombre_menor', 'estado', 'latitud', 'longitud']]
 
-@app.callback(Output('ficha-nino', 'children'), [Input('selector-detalle', 'value')])
-def mostrar_ficha(id_nino):
-    if not id_nino: return html.P("Seleccione un menor para ver su información.")
-    df = obtener_datos_graficos()
-    nino = df[df['id_nino'] == id_nino].iloc[0]
-    def info_item(label, value):
-        return html.Div([html.P(label, style={'color': dark_theme['accent'], 'fontSize': '0.8rem', 'margin': '0'}), html.H4(str(value), style={'margin': '5px 0 0 0'})], style={'padding': '15px', 'backgroundColor': 'rgba(255,255,255,0.03)', 'borderRadius': '8px'})
-    return [info_item("NOMBRE COMPLETO", nino['nombre_completo']), info_item("TUTOR LEGAL", nino['nombre_tutor']), info_item("DIRECCIÓN", nino['ubicacion']), info_item("ID", nino['id_nino']), info_item("DISCAPACIDAD", "SÍ" if nino['discapacidad'] else "NO")]
+        try:
+            df_tabla['fecha'] = df_tabla['fecha'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            pass
+
+        header = [html.Tr([html.Th(col, style={'padding': '10px', 'text-align': 'left', 'border-bottom': '2px solid #ddd'}) for col in df_tabla.columns])]
+        rows = []
+        for i in range(len(df_tabla)):
+            row_style = {'background-color': '#f9f9f9'} if i % 2 == 0 else {}
+            cells = [html.Td(df_tabla.iloc[i][col], style={'padding': '10px', 'border-bottom': '1px solid #eee'}) for col in df_tabla.columns]
+            rows.append(html.Tr(cells, style=row_style))
+        
+        tabla_html = html.Table(header + rows, style={'width': '100%', 'border-collapse': 'collapse'})
+
+    return total_menores, total_alertas, total_peligros, fig_estados, fig_mapa, tabla_html
 
 if __name__ == '__main__':
-    app.run_server(debug=False, host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
+    port = int(os.environ.get("PORT", 8080))
+    app.run_server(debug=False, host="0.0.0.0", port=port)
