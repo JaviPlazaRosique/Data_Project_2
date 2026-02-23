@@ -206,9 +206,9 @@ resource "google_bigquery_table" "historico_notificaciones" {
     field = "fecha"
   }
   schema = <<EOF
-[
-  {"name": "id", "type": "STRING"},  
+[ 
   {"name": "id_menor", "type": "STRING"},
+  {"name": "nombre_menor", "type": "STRING"},
   {"name": "latitud", "type": "FLOAT"},
   {"name": "longitud", "type": "FLOAT"},
   {"name": "fecha", "type": "TIMESTAMP"},
@@ -540,6 +540,24 @@ resource "google_cloud_run_v2_service" "dashboard_cloud_run" {
   depends_on = [docker_registry_image.dashboard_push]
 }
 
+resource "null_resource" "lanzar_dataflow" {
+  triggers = {
+    password = random_password.contraseña-monitoreo-menores.result
+    db_host  = google_sql_database_instance.postgres_instance.private_ip_address
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
+    EOT
+  }
+
+  depends_on = [
+    google_sql_user.postgres_user,
+    google_sql_database.menores_db,
+    google_service_networking_connection.private_vpc_connection
+  ]
+}
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
   display_name = "Conexión de origen para Datastream (PostgreSQL)"
   location = var.region
@@ -693,7 +711,7 @@ resource "google_compute_instance" "proxy_datastream" {
 
 resource "time_sleep" "esperar_instalacion_proxy" {
   depends_on = [google_compute_instance.proxy_datastream]
-  create_duration = "120s"
+  create_duration = "300s"
 }
 
 resource "time_sleep" "esperar_arranque_api" {
