@@ -232,3 +232,9 @@ La aplicación utiliza variables de entorno para una configuración segura y fle
 * **IAM**: Uso de Cuentas de Servicio con el principio de mínimo privilegio.
 
 * **Redes**: Conexión entre App y DB mediante IP Privada y VPC Peering para evitar exposición a internet.
+
+Integrantes:
+   * Celia Sarrió
+   * Gemma Balaguer
+   * Javier Plaza
+   * Marina López
