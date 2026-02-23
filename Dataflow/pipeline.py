@@ -356,7 +356,6 @@ def run():
 
         (mensajes_procesados
                 | "EnviarNotificaciones" >> beam.ParDo(EnviarNotificaciones())
-                | "ImprimirEnPantalla" >> beam.Map(print)
         )
         
         (mensajes_procesados 
