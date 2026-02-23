@@ -365,7 +365,8 @@ def run():
                         table=args.historico_notificaciones_bigquery_table,
                         schema='id_menor:STRING, nombre_menor:STRING, latitud:FLOAT, longitud:FLOAT, fecha:TIMESTAMP, estado:STRING',                        
                         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED, 
-                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND
+                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                        ignore_unknown_columns=True
                     )
         )
         (mensajes_procesados
