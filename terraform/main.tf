@@ -312,7 +312,6 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
       ports {
         container_port = 8080
       }
-
       startup_probe {
         initial_delay_seconds = 10
         timeout_seconds = 5
@@ -368,10 +367,24 @@ resource "google_cloud_run_v2_service" "web_cloud_run" {
   ]
 }
 
-output "cicd_service_account_key" {
-  description = "Contenido de la llave JSON para copiar a GitHub Secrets"
-  value       = google_service_account_key.github_sa_key.private_key
-  sensitive   = true
+resource "null_resource" "lanzar_dataflow" {
+  triggers = {
+    password = random_password.contraseña-monitoreo-menores.result
+    db_host  = google_sql_database_instance.postgres_instance.private_ip_address
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+    python ../Dataflow/pipeline.py --project_id=${var.project_id} --ubicacion_pubsub_subscription_name=${google_pubsub_topic.topic-ubicacion.name}-sub --bigquery_dataset=${google_bigquery_dataset.monitoreo_dataset.dataset_id} --historico_notificaciones_bigquery_table=${google_bigquery_table.historico_notificaciones.table_id} --db_host=${google_sql_database_instance.postgres_instance.private_ip_address} --db_user=${google_sql_user.postgres_user.name} --db_pass="${random_password.contraseña-monitoreo-menores.result}" --runner=DataflowRunner --region=${var.region_df} --network=${google_compute_network.vpc_monitoreo_menores.name} --subnetwork=regions/${var.region_df}/subnetworks/${google_compute_network.vpc_monitoreo_menores.name} --job_name=pipeline-monitoreo-menores1 --requirements_file=../Dataflow/requirements.txt
+    EOT
+  }
+
+  depends_on = [
+    google_sql_user.postgres_user,
+    google_sql_database.menores_db,
+    google_service_networking_connection.private_vpc_connection,
+    google_project_service.activar_servicios_proyecto,
+  ]
 }
 
 resource "google_datastream_connection_profile" "conexion_origen_datastream" {
