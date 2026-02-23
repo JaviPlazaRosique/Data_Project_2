@@ -126,6 +126,10 @@ Para mantener el Data Warehouse actualizado sin penalizar el rendimiento de la b
 * **Pub/Sub**: Ingesta de mensajes de ubicación.
   
 * **Cloud SQL (PostgreSQL)**: Gestión de zonas y usuarios.
+
+* **Cloud Storage**: Bucket con fotos de los menores.
+
+* **Cloud Run**: Despliegue de contenedores.
   
 * **BigQuery**: Data Warehouse para análisis histórico.
   
