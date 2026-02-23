@@ -5,7 +5,7 @@ from streamlit_folium import st_folium
 from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import create_engine, text
 import os
-from google.cloud import storage
+from google.cloud import storage, firestore
 import uuid
 
 proyecto_region_instancia = os.getenv("PROYECTO_REGION_INSTANCIA")
@@ -16,6 +16,7 @@ bucket_fotos = os.getenv("BUCKET_FOTOS")
 
 storage_client = storage.Client()
 bucket = storage_client.bucket(bucket_fotos)
+db_firestore = firestore.Client()
 
 conector = Connector()
 
@@ -99,6 +100,16 @@ def obtener_zonas_restringidas(id_menor):
         consulta = text("SELECT * FROM zonas_restringidas WHERE id_menor = :id_menor")
         resultados = conn.execute(consulta, {"id_menor": id_menor}).fetchall()
         return resultados
+
+def obtener_ubicacion_menor(id_menor):
+    try:
+        doc_ref = db_firestore.collection("ubicaciones").document(str(id_menor))
+        doc = doc_ref.get()
+        if doc.exists:
+            return doc.to_dict()
+        return None
+    except Exception:
+        return None
 
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -252,15 +263,20 @@ else:
 
         st.subheader("Mapa")
         zonas = obtener_zonas_restringidas(menor.id)
+        ubicacion = obtener_ubicacion_menor(menor.id)
         
         lat, lon = 39.4699, -0.3763 
-        direccion_lower = str(menor.direccion).lower()
         
-        if "madrid" in direccion_lower:
-            lat, lon = 40.4168, -3.7038
-        elif "barcelona" in direccion_lower:
-            lat, lon = 41.3851, 2.1734
-        
+        if ubicacion:
+            lat, lon = ubicacion['latitud'], ubicacion['longitud']
+        else:
+            direccion_lower = str(menor.direccion).lower()
+            
+            if "madrid" in direccion_lower:
+                lat, lon = 40.4168, -3.7038
+            elif "barcelona" in direccion_lower:
+                lat, lon = 41.3851, 2.1734
+            
         m = folium.Map(location=[lat, lon], zoom_start=12, tiles=None)
         
         folium.TileLayer("OpenStreetMap", name="Callejero").add_to(m)
@@ -277,6 +293,20 @@ else:
         ).add_to(m)
 
         folium.LayerControl().add_to(m)
+
+        if ubicacion:
+            estado = ubicacion.get('estado', 'OK')
+            color_marcador = "green"
+            if estado == "PELIGRO":
+                color_marcador = "red"
+            elif estado == "ADVERTENCIA":
+                color_marcador = "orange"
+            
+            folium.Marker(
+                location=[ubicacion['latitud'], ubicacion['longitud']],
+                popup=f"Ubicación Actual ({estado})",
+                icon=folium.Icon(color=color_marcador, icon="user")
+            ).add_to(m)
 
         for zona in zonas:
             folium.Circle(
